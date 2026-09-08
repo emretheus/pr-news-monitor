@@ -165,17 +165,17 @@
 </head>
 <body>
   <main class="deck" aria-live="polite">
-    <section class="slide active" style="--signal-height:22%" aria-label="Slide 1 of 9">
+    <section class="slide active" style="--signal-height:22%" aria-label="Slide 1 of 8">
       <div class="slide-head"><span class="eyebrow">Onsite interview · five-minute walkthrough</span></div>
       <div class="slide-body hero">
         <h1>News monitoring<br><span class="accent">without the noise.</span></h1>
         <p class="lede">A configurable PR dashboard that groups duplicate coverage, explains each story, and keeps the original evidence one click away.</p>
         <p class="hero-note">Equinix · Digital Realty · Data centre industry</p>
       </div>
-      <footer class="slide-foot"><span>PR News Monitor</span><span class="slide-index">01 / 09</span></footer>
+      <footer class="slide-foot"><span>PR News Monitor</span><span class="slide-index">01 / 08</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:30%" aria-label="Slide 2 of 9">
+    <section class="slide" style="--signal-height:30%" aria-label="Slide 2 of 8">
       <header class="slide-head"><span class="eyebrow">System overview</span><h2>The complete flow</h2></header>
       <div class="slide-body diagram-layout">
         <div class="diagram-copy">
@@ -187,10 +187,10 @@
           <img src="pr-news-monitor-flow.jpg" alt="Flow diagram from company and competitor configuration through article discovery, text extraction, duplicate checks, grouping, LLM analysis, and dashboard feeds">
         </figure>
       </div>
-      <footer class="slide-foot"><span>Detailed implementation flow</span><span class="slide-index">02 / 09</span></footer>
+      <footer class="slide-foot"><span>Detailed implementation flow</span><span class="slide-index">02 / 08</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:40%" aria-label="Slide 3 of 9">
+    <section class="slide" style="--signal-height:40%" aria-label="Slide 3 of 8">
       <header class="slide-head"><span class="eyebrow">The refresh path</span><h2>One flow, clear boundaries</h2></header>
       <div class="slide-body pipeline">
         <article class="stage"><span class="number">01</span><h3>Discover</h3><p>NewsData.io plus Data Centre Magazine.</p></article>
@@ -198,36 +198,23 @@
         <article class="stage"><span class="number">03</span><h3>Group + analyze</h3><p>TF-IDF groups related reports. OpenRouter summarizes and labels relevance.</p></article>
         <article class="stage"><span class="number">04</span><h3>Publish</h3><p>SQLite swaps in one complete snapshot for all three feeds.</p></article>
       </div>
-      <footer class="slide-foot"><span>UI → pipeline → focused modules → storage</span><span class="slide-index">03 / 09</span></footer>
+      <footer class="slide-foot"><span>UI → pipeline → focused modules → storage</span><span class="slide-index">03 / 08</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:50%" aria-label="Slide 4 of 9">
-      <header class="slide-head"><span class="eyebrow">Docker proof · 59 seconds, not a mock</span><h2>Fewer stories, more signal</h2></header>
-      <div class="slide-body">
-        <div class="feeds">
-          <article class="feed"><div class="count" style="font-size:clamp(38px,5vw,64px)">48 → 39</div><h3>Deduplicated</h3><p>25 NewsData + 23 Magazine articles merged into 39 stories. Same event from two outlets stays together with both links.</p></article>
-          <article class="feed"><div class="count" style="font-size:clamp(38px,5vw,64px)">9 · 9 · 38</div><h3>Routed, not double-counted</h3><p>Equinix 9, competitors 9, industry 38 — including 23 industry-only. Total ≠ sum: one story can live in two feeds.</p></article>
-          <article class="feed"><div class="count" style="font-size:clamp(38px,5vw,64px)">20 + 19</div><h3>Honestly labeled</h3><p>20 AI summaries + 19 visible keyword fallbacks at the 20-call cap. Snapshot survived container recreate unchanged.</p></article>
-        </div>
-        <p class="proof-note">Linux ARM64 · non-root · named volume verified. Counts prove the plumbing — not summary accuracy.</p>
-      </div>
-      <footer class="slide-foot"><span>Overlap is a feature; fallbacks are labeled, not hidden</span><span class="slide-index">04 / 09</span></footer>
-    </section>
-
-    <section class="slide" style="--signal-height:60%" aria-label="Slide 5 of 9">
-      <header class="slide-head"><span class="eyebrow">Engineering choices</span><h2>Simple choices with known limits</h2></header>
+    <section class="slide" style="--signal-height:60%" aria-label="Slide 4 of 8">
+      <header class="slide-head"><span class="eyebrow">Stack decisions</span><h2>Prototype now, prod when it earns it</h2></header>
       <div class="slide-body choices">
-        <article class="choice"><strong>Streamlit</strong><p>One Python application to build and deploy. Long refreshes occupy the initiating session.</p></article>
-        <article class="choice"><strong>SQLite</strong><p>Durable local results with no extra service. One process is the intended deployment.</p></article>
-        <article class="choice"><strong>TF-IDF</strong><p>Cheap, deterministic grouping. It can miss paraphrases or confuse similarly worded events.</p></article>
-        <article class="choice"><strong>LLM + Pydantic</strong><p>Summary and three relevance labels in one call. Validation catches bad structure, not factual errors.</p></article>
-        <article class="choice"><strong>YAML</strong><p>Settings stay reviewable and versionable. Users restart and refresh after changes.</p></article>
-        <article class="choice"><strong>Bounded work</strong><p>Caps protect latency and API spend. Coverage is a recent sample, not an exhaustive archive.</p></article>
+        <article class="choice"><strong>Streamlit UI</strong><p>Now: one Python app, sync refresh. Prod: FastAPI + frontend when other clients or UI scale need it.</p></article>
+        <article class="choice"><strong>SQLite + lock</strong><p>Now: durable with no service, one process. Prod: PostgreSQL + queued jobs + shared lock for schedules and replicas.</p></article>
+        <article class="choice"><strong>TF-IDF grouping</strong><p>Now: cheap and deterministic. Prod: embeddings verifier only if a labeled sample proves misses.</p></article>
+        <article class="choice"><strong>Mini + fallback LLM</strong><p>Now: gpt-4o-mini, second model, strict schema. Prod: re-pick from measured factuality, latency, and cost.</p></article>
+        <article class="choice"><strong>YAML config</strong><p>Now: reviewable in git, restart to apply. Prod: settings UI when non-technical editors need it.</p></article>
+        <article class="choice"><strong>One container</strong><p>Now: Docker + named volume. Prod: auth, managed secrets, backups, and alerts before public use.</p></article>
       </div>
-      <footer class="slide-foot"><span>Complexity follows demonstrated need</span><span class="slide-index">05 / 09</span></footer>
+      <footer class="slide-foot"><span>Nothing gets rewritten until its trigger fires</span><span class="slide-index">04 / 08</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:70%" aria-label="Slide 6 of 9">
+    <section class="slide" style="--signal-height:70%" aria-label="Slide 5 of 8">
       <header class="slide-head"><span class="eyebrow">Failure behavior</span><h2>Useful results survive imperfect inputs</h2></header>
       <div class="slide-body failure-grid">
         <div class="failure-list">
@@ -238,10 +225,10 @@
         </div>
         <aside class="promise"><div class="big">The last good snapshot stays visible.</div><p>Atomic publication prevents partial replacements. A process-wide lock rejects overlapping refreshes, and normal page reruns never call the APIs.</p></aside>
       </div>
-      <footer class="slide-foot"><span>Failure is a product state, not a hidden exception</span><span class="slide-index">06 / 09</span></footer>
+      <footer class="slide-foot"><span>Failure is a product state, not a hidden exception</span><span class="slide-index">05 / 08</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:82%" aria-label="Slide 7 of 9">
+    <section class="slide" style="--signal-height:82%" aria-label="Slide 6 of 8">
       <header class="slide-head"><span class="eyebrow">Operations</span><h2>Operations today and in production</h2></header>
       <div class="slide-body ops">
         <div class="ops-column">
@@ -259,10 +246,10 @@
           <article class="ops-item"><strong>Actionable alerts</strong><p>Alert on stale coverage, repeated source failure, high fallback rate, job backlog, and unusual API spend.</p></article>
         </div>
       </div>
-      <footer class="slide-foot"><span>Health says the app is up; observability says whether monitoring works</span><span class="slide-index">07 / 09</span></footer>
+      <footer class="slide-foot"><span>Health says the app is up; observability says whether monitoring works</span><span class="slide-index">06 / 08</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:100%" aria-label="Slide 8 of 9">
+    <section class="slide" style="--signal-height:100%" aria-label="Slide 7 of 8">
       <header class="slide-head"><span class="eyebrow">Production direction</span><h2>Improve in the order risk appears</h2></header>
       <div class="slide-body production">
         <article class="priority"><small>FIRST</small><h3>Measure quality</h3><p>Label a real news sample. Evaluate grouping, dates, relevance, and summary accuracy before changing models.</p></article>
@@ -270,9 +257,9 @@
         <article class="priority"><small>WHEN MONITORING BECOMES CONTINUOUS</small><h3>Move work to jobs</h3><p>Add scheduling, durable retries, freshness alerts, source metrics, and cost tracking.</p></article>
         <article class="priority"><small>WHEN ONE PROCESS ISN'T ENOUGH</small><h3>Change the architecture</h3><p>Use PostgreSQL and shared job coordination. Add FastAPI or a richer frontend when another client needs it.</p></article>
       </div>
-      <footer class="slide-foot"><span>Working prototype first; measured evolution next</span><span class="slide-index">08 / 09</span></footer>
+      <footer class="slide-foot"><span>Working prototype first; measured evolution next</span><span class="slide-index">07 / 08</span></footer>
     </section>
-    <section class="slide" style="--signal-height:100%" aria-label="Slide 9 of 9">
+    <section class="slide" style="--signal-height:100%" aria-label="Slide 8 of 8">
       <header class="slide-head"><span class="eyebrow">Backup · numbers</span><h2>Every number is a budget</h2></header>
       <div class="slide-body">
         <div class="numbers">
@@ -303,7 +290,7 @@
         </div>
         <p class="numbers-note">Limits keep latency and cost predictable. Exceeding them yields partial results with labeled fallbacks — never silent failure or overwritten good snapshots.</p>
       </div>
-      <footer class="slide-foot"><span>Prototype bounds; production scales with jobs + queues</span><span class="slide-index">09 / 09</span></footer>
+      <footer class="slide-foot"><span>Prototype bounds; production scales with jobs + queues</span><span class="slide-index">08 / 08</span></footer>
     </section>
   </main>
 

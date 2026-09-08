@@ -84,6 +84,7 @@ def test_saved_story_appears_in_both_feeds_with_fallback_and_unknown_date(db):
         f"{company} (1)",
         "Competitors (1)",
         "Industry (0)",
+        "Rival moves (0)",
     ]
     assert len(app.subheader) == 2
     assert app.subheader[0].value == "Company's joint expansion"
@@ -145,7 +146,7 @@ def test_changed_configuration_does_not_show_old_classifications(
     assert not app.exception
     assert not app.subheader
     assert any("new refresh is required" in item.value for item in app.info)
-    assert len(app.tabs) == 2  # Old configurations may omit the optional sector.
+    assert len(app.tabs) == 3  # Competitor-exclusive tab needs no sector config.
 
 
 def test_industry_feed_supports_overlap_and_excludes_unrelated_stories(db, monkeypatch):
@@ -182,6 +183,7 @@ def test_industry_feed_supports_overlap_and_excludes_unrelated_stories(db, monke
         f"{company} (1)",
         "Competitors (1)",
         "Industry (2)",
+        "Rival moves (0)",
     ]
     assert [item.value for item in app.tabs[2].subheader] == [
         "Sector regulation",
@@ -248,3 +250,52 @@ def test_preset_selection_applies_without_raw_error(db):
     assert not app.exception
     assert not any("validation error" in str(item.value) for item in app.error)
     assert any(preset.split(":")[0] in str(item.value) for item in app.success)
+
+
+def test_rival_moves_shows_only_competitor_exclusive_stories(db, monkeypatch):
+    exclusive = save_article(
+        db,
+        Article(
+            url="https://example.com/exclusive",
+            title="Rival launches new region",
+            publisher="Example",
+            provider="fixture",
+        ),
+    )
+    shared = save_article(
+        db,
+        Article(
+            url="https://example.com/shared",
+            title="Joint venture announced",
+            publisher="Example",
+            provider="fixture",
+        ),
+    )
+    stories = [
+        Story(
+            id="exclusive",
+            description="Rival-only expansion.",
+            articles=(ArticleRelevance(exclusive.id, False, True, False),),
+            analysis_fingerprint="fixture",
+        ),
+        Story(
+            id="shared",
+            description="Shared announcement.",
+            articles=(ArticleRelevance(shared.id, True, True, False),),
+            analysis_fingerprint="fixture",
+        ),
+    ]
+    publish_stories(db, start_refresh(db, load_config().fingerprint), stories)
+    refresh = Mock()
+    monkeypatch.setattr(pipeline, "refresh_news", refresh)
+    app = AppTest.from_file(APP).run()
+    assert not app.exception
+    company = load_config().company.name
+    assert [tab.label for tab in app.tabs] == [
+        f"{company} (1)",
+        "Competitors (2)",
+        "Industry (0)",
+        "Rival moves (1)",
+    ]
+    assert [item.value for item in app.tabs[3].subheader] == ["Rival launches new region"]
+    refresh.assert_not_called()

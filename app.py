@@ -348,13 +348,17 @@ def render_overview(
         return
     company = sum(1 for s in stories if s.company_relevant)
     competitor = sum(1 for s in stories if s.competitor_relevant)
+    moves = sum(
+        1 for s in stories if s.competitor_relevant and not s.company_relevant
+    )
     fallbacks = sum(1 for s in stories if s.analysis_status != AnalysisStatus.SUCCESS)
     with st.expander("Coverage overview", expanded=False):
-        m1, m2, m3, m4 = st.columns(4)
+        m1, m2, m3, m4, m5 = st.columns(5)
         m1.metric("Stories", len(stories))
         m2.metric("Company", company)
         m3.metric("Competitors", competitor)
-        m4.metric("Fallbacks", fallbacks)
+        m4.metric("Rival moves", moves)
+        m5.metric("Fallbacks", fallbacks)
         counts = Counter(
             (articles[l.article_id].publisher or "Unknown")
             for s in stories
@@ -543,27 +547,44 @@ def main() -> None:
     render_overview(stories, articles)
     company = [story for story in stories if story.company_relevant]
     competitor = [story for story in stories if story.competitor_relevant]
-    feeds = [company, competitor]
-    tab_names = [
-        f"{safe_text(config.company.name)} ({len(company)})",
-        f"Competitors ({len(competitor)})",
+    moves = [
+        story
+        for story in stories
+        if story.competitor_relevant and not story.company_relevant
+    ]
+    feeds: list[tuple[str, list[Story], str | None]] = [
+        (f"{safe_text(config.company.name)} ({len(company)})", company, None),
+        (f"Competitors ({len(competitor)})", competitor, None),
     ]
     if config.industry:
         industry = [story for story in stories if story.industry_relevant]
-        feeds.append(industry)
-        tab_names.append(f"Industry ({len(industry)})")
-    for index, (tab, feed) in enumerate(zip(st.tabs(tab_names), feeds, strict=True)):
+        feeds.append(
+            (
+                f"Industry ({len(industry)})",
+                industry,
+                f"Sector: {config.industry.name}. Broader industry developments may also appear in the company feeds.",
+            )
+        )
+    feeds.append(
+        (
+            f"Rival moves ({len(moves)})",
+            moves,
+            f"Competitor stories without {config.company.name} — pure rival intel.",
+        )
+    )
+    for tab, (name, feed, intro) in zip(st.tabs([name for name, _, _ in feeds]), feeds, strict=True):
         with tab:
-            if index == 2:
-                st.caption(
-                    safe_text(
-                        f"Sector: {config.industry.name}. Broader industry developments may also appear in the company feeds."
-                    )
-                )
+            if intro:
+                st.caption(safe_text(intro))
             if not feed and snapshot:
-                st.info(
-                    "No matching stories in the saved coverage. Refresh later for new articles."
-                )
+                if name.startswith("Rival moves"):
+                    st.info(
+                        "No competitor-exclusive stories in the saved coverage. Shared stories stay in the Competitors feed."
+                    )
+                else:
+                    st.info(
+                        "No matching stories in the saved coverage. Refresh later for new articles."
+                    )
             render_feed(feed, articles)
     st.caption(
         "Coverage is a bounded sample. NewsData.io's free feed is delayed; original publication dates may be unavailable."
