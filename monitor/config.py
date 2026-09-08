@@ -62,6 +62,7 @@ class AppConfig(BaseModel):
 
     company: EntityConfig
     competitors: tuple[EntityConfig, ...] = Field(min_length=1, max_length=10)
+    industry: EntityConfig | None = None
     news: NewsConfig = Field(default_factory=NewsConfig)
 
     @model_validator(mode="after")
@@ -96,6 +97,7 @@ class AppConfig(BaseModel):
                     key=lambda entity: entity["name"],
                 ),
                 "news": self.news.model_dump(),
+                **({"industry": entity_data(self.industry)} if self.industry else {}),
             }
         )
 

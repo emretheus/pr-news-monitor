@@ -66,6 +66,23 @@ def test_repeated_ingestion_and_startup_preserve_article(db):
     initialize_database(db)
     assert repeated.id == saved.id
     assert get_articles(db, [saved.id]) == (saved,)
+
+
+def test_industry_migration_preserves_old_snapshot_and_new_labels(db):
+    saved = save_article(db, article())
+    attempt = start_refresh(db, "config")
+    publish_stories(db, attempt, [story(saved)])
+    with sqlite3.connect(db) as connection:
+        connection.execute("ALTER TABLE story_articles DROP COLUMN industry")
+    initialize_database(db)
+    old = get_snapshot(db, "config")
+    assert old.stories[0].company_relevant
+    assert not old.stories[0].industry_relevant
+    updated = story(saved, articles=(ArticleRelevance(saved.id, industry=True),))
+    attempt = start_refresh(db, "config")
+    publish_stories(db, attempt, [updated])
+    initialize_database(db)
+    assert get_snapshot(db, "config").stories == (updated,)
     assert len(list_recent_articles(db, since=NOW - timedelta(days=7))) == 1
 
 

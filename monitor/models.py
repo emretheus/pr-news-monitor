@@ -105,6 +105,7 @@ class ArticleRelevance:
     article_id: str
     company: bool = False
     competitor: bool = False
+    industry: bool = False
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -122,6 +123,10 @@ class Story:
     @property
     def competitor_relevant(self) -> bool:
         return any(article.competitor for article in self.articles)
+
+    @property
+    def industry_relevant(self) -> bool:
+        return any(article.industry for article in self.articles)
 
 
 @dataclass(frozen=True)

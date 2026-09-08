@@ -5,6 +5,7 @@ import time
 from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime, timedelta
+from threading import Lock
 
 from monitor.analysis import analysis_fingerprint, analyze_group, fallback_story
 from monitor.config import AppConfig
@@ -31,6 +32,16 @@ from monitor.storage import (
     save_article,
     start_refresh,
 )
+
+_REFRESH_LOCK = Lock()
+
+
+class RefreshInProgress(RuntimeError):
+    """Another session already owns this process's refresh."""
+
+
+def refresh_in_progress() -> bool:
+    return _REFRESH_LOCK.locked()
 
 
 @dataclass(frozen=True)
@@ -231,9 +242,14 @@ def refresh_news(
     progress: Callable[[str], None] | None = None,
 ) -> RefreshResult:
     """Ingest, group, analyze, then atomically publish a complete result snapshot."""
-    attempt = start_refresh(database, config.fingerprint)
+    if not _REFRESH_LOCK.acquire(blocking=False):
+        raise RefreshInProgress(
+            "A refresh is already running. Please wait for it to finish."
+        )
+    attempt = None
     sources: tuple[SourceOutcome, ...] = ()
     try:
+        attempt = start_refresh(database, config.fingerprint)
         ingestion = ingest_news(
             config,
             database,
@@ -271,9 +287,12 @@ def refresh_news(
         return RefreshResult(attempt, status, ingestion, analysis, grouped.limited)
     except Exception:
         try:
-            finish_refresh(
-                database, attempt, status=RefreshStatus.FAILED, sources=sources
-            )
+            if attempt is not None:
+                finish_refresh(
+                    database, attempt, status=RefreshStatus.FAILED, sources=sources
+                )
         except (sqlite3.Error, ValueError):
             pass  # A failed database or already-finished attempt must not mask the original error.
         raise
+    finally:
+        _REFRESH_LOCK.release()

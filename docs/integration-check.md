@@ -87,3 +87,35 @@ Ran the actual `pipeline.refresh_news` entry point with three articles per sourc
 The labels included an Equinix-only acquisition story, two stories relevant to both tracked companies, and two industry stories relevant to neither. The matching two-publisher coverage remained grouped and its member article IDs were validated individually. These observations are a small functional sample, not a measured classification-quality score.
 
 The second full refresh reused all six extracted articles and all five successful analyses, making zero further model requests. Both runs reported partial coverage because the small source caps were intentionally reached; analysis itself succeeded. Snapshot publication, API-failure fallbacks, malformed output, and preservation of prior results are additionally covered by deterministic tests.
+
+## Step 6 — dashboard and live browser refresh
+
+Started `app.py` with Streamlit and used the dashboard's Refresh news button with the unchanged default configuration. The button disabled during work and progress updated. The refresh finished in approximately 61 seconds: NewsData.io returned 25 articles and reported its cap, while Data Centre Magazine returned 22 articles. The published snapshot contained 38 groups: 20 successful analyses and 18 explicit fallbacks after the request budget. Both the Equinix feed and competitor feed displayed nine relevant stories; memberships can overlap.
+
+Browser inspection verified readable story cards, an expanded two-publisher story with original descriptions and article links, source status, and visible fallback labels. A rendering issue with apostrophes was corrected and covered by a regression assertion. Reloading displayed the saved snapshot without starting another refresh.
+
+All 133 automated tests pass. Dashboard tests cover initial/rerun behavior without network calls, shared stories in both feeds, unknown dates, snippet/headline fallbacks, failed-refresh retention, configuration changes, button disabling, and one refresh per click. Threaded pipeline tests reject a simultaneous refresh and verify lock release, including database-startup failure. Ruff and dependency compatibility checks pass. The only test warning concerns unused optional Newspaper4k NLTK features.
+
+Restarted the Streamlit process and confirmed both nine-story feeds survived without another refresh; switching to the competitor tab displayed saved coverage. This verifies local Streamlit execution. Docker and Streamlit Cloud deployment remain unverified and outside step 6.
+
+## Step 7 — Docker verification
+
+Built and started the image with Compose on Docker Engine 29.3.1 using Python 3.12.13 on Linux ARM64. The non-root app UID and named volume directory owner both equal 10001. Streamlit's health endpoint returned `ok`, and Compose reported a healthy container. The image excluded `.env`, Streamlit secrets, Git metadata, and local development state. Dependency compatibility checks passed.
+
+All 133 tests passed in a disposable container using the built runtime image. Tests were mounted read-only and test dependencies installed in a temporary directory, leaving the deployed image unchanged.
+
+The browser-triggered refresh was interrupted when its session closed. A fresh invocation of the same pipeline inside the container completed in 59.2 seconds. NewsData.io returned 25 articles and reported its cap; Data Centre Magazine returned 23 articles. The snapshot contained 39 groups, with 20 successful AI analyses and 19 budget fallbacks. Both feeds contained nine stories. A diagnostic print after completion referenced a nonexistent result attribute; independent storage inspection confirmed successful publication.
+
+Recreated the app with `docker compose up -d --force-recreate --wait`. Compared the saved snapshot timestamp and all 39 story IDs before and after recreation: unchanged. The named volume persisted and the app remained healthy. This verifies local Linux ARM64 deployment; other architectures and public hosting were not tested.
+
+The build initially stalled in Docker Desktop's credential helper. A temporary Docker client configuration with anonymous public registry access resolved it without changing saved credentials. Standard Compose commands worked for subsequent container operations. Verification used `NEWS_MONITOR_PORT=8502` to preserve the separate local app on port 8501.
+
+The required deployment deliverables are complete. Streamlit Cloud remains optional and has not been deployed. The short write-up, six-slide presentation with speaker notes, and timed walkthrough are under `docs/`.
+
+## Optional industry feed
+
+Added explicit per-article industry labels and optional YAML sector configuration. A transactional startup migration adds the new label with a false default while retaining old snapshots and articles. The new prompt and configuration fingerprints trigger fresh analysis rather than treating old unclassified stories as industry news.
+
+All 140 tests pass locally and inside the rebuilt Linux container. New coverage includes legacy database migration, optional sector validation, invalid/missing model labels, industry keyword fallbacks, industry-only stories, overlapping feeds, unrelated exclusions, and UI reruns without extra requests.
+
+A live refresh against the existing Docker volume published 39 groups: 20 successful analyses and 19 budget fallbacks. The company and competitor feeds each showed nine stories; the industry feed showed 38, including 23 in neither company feed. Browser inspection confirmed the third tab, sector description, and saved results. These counts demonstrate the integration, not classification accuracy. Keyword fallbacks can over-classify incidental sector mentions; discovery remains bounded and mainly depends on magazine coverage for general industry news.

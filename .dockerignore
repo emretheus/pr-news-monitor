@@ -1,0 +1,10 @@
+# Only explicitly required application inputs enter the build context.
+**
+!Dockerfile
+!requirements.lock
+!app.py
+!config.yaml
+!monitor/
+!monitor/*.py
+!.streamlit/
+!.streamlit/config.toml

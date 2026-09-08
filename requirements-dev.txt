@@ -1,2 +1,2 @@
--r requirements.txt
+-r requirements.lock
 pytest==9.1.1

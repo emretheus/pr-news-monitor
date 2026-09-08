@@ -1,6 +1,6 @@
 # PR News Monitor — implementation plan
 
-Status: steps 1–5 complete; awaiting confirmation for step 6. See [integration evidence](docs/integration-check.md) and [implementation decisions](README.md).
+Status: steps 1–7 complete. Step 8 remains reserved for rehearsal and any final issues. See [integration evidence](docs/integration-check.md), [implementation decisions](README.md), and the [presentation](docs/presentation/pr-news-monitor.pptx).
 
 ## Goal and working agreement
 
@@ -174,6 +174,8 @@ Completed: bounded OpenRouter calls, strict local schema/article-ID validation, 
 
 ### Step 6 — Dashboard and refresh behavior (30 minutes)
 
+**Completed:** native Streamlit feeds, explicit refresh/progress, persisted source status, fallback labels, and a process-wide refresh lock. Verified with 133 passing tests and a live browser refresh; see the integration evidence.
+
 - Show read-only configuration, Refresh news, progress, last successful update, and latest source outcomes.
 - Show company and competitor feeds with stories ordered by their newest known article publication date; place unknown-date stories after dated stories.
 - Each story shows its description and expandable original coverage. Every article exposes title/link, description or explicit missing-description fallback, publisher, and publication date or “Unknown”.
@@ -185,6 +187,8 @@ Completed: bounded OpenRouter calls, strict local schema/article-ID validation, 
 **Exit evidence:** normal UI reruns cause no API calls; repeated clicks do not overlap refreshes; saved results remain available after restart; source failures and empty states are distinguishable.
 
 ### Step 7 — Packaging, verification, and interview walkthrough (25 minutes)
+
+**Completed:** Dockerfile, Compose, dependency lock, secret-excluding build context, non-root runtime, health check, and persistent SQLite volume. All 133 tests passed locally and inside Linux. Both live sources and OpenRouter worked in the container, and recreation preserved the published snapshot. A six-slide presentation, short write-up, and timed speaking script are ready.
 
 - Add a reproducible Dockerfile with a pinned Python version and verified dependency versions. Run Streamlit as a non-root user, bind to `0.0.0.0`, expose port 8501, and configure a health check.
 - Add Compose with runtime environment configuration and a named volume for SQLite. Ensure the non-root application user can write to the volume. Add `.dockerignore` to exclude secrets, local databases, Git metadata, and caches; never bake API keys into the image.
@@ -274,6 +278,8 @@ Tests should protect these behaviors, not mirror every helper implementation. Br
 4. **3:00–4:00:** Explain why YAML, SQLite, Streamlit, and deterministic grouping fit the time budget.
 5. **4:00–5:00:** Show focused verification, deployment instructions, known limitations, and the next production improvements.
 
-## Next confirmation
+## Final rehearsal
 
-Review the step 5 implementation and verification, then authorize step 6: the Streamlit dashboard, refresh guard, and visible status/fallback handling. Docker packaging remains step 7.
+The optional industry feed is now implemented with YAML sector configuration, independent relevance labels, keyword fallback, and a backward-compatible SQLite migration. It reuses existing discovery and per-story analysis requests. Dedicated broader industry discovery remains outside this bounded prototype.
+
+Use the remaining contingency time to rehearse the five-minute presentation and review the saved dashboard. All required implementation steps are complete. Streamlit Cloud remains an optional follow-up and has not been deployed.

@@ -1,0 +1,18 @@
+services:
+  app:
+    build: .
+    ports:
+      - "127.0.0.1:${NEWS_MONITOR_PORT:-8501}:8501"
+    environment:
+      NEWSDATA_API_KEY: ${NEWSDATA_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-openai/gpt-4o-mini}
+      NEWS_MONITOR_DB_PATH: /app/data/news.db
+    volumes:
+      - news-data:/app/data
+      - ./config.yaml:/app/config.yaml:ro
+    init: true
+    restart: unless-stopped
+
+volumes:
+  news-data:

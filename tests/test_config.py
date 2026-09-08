@@ -97,3 +97,17 @@ def test_alias_matching_is_case_insensitive_and_respects_word_boundaries(setting
     assert config.competitors[0].is_mentioned(
         "Digital\nRealty Trust announced a project."
     )
+
+
+def test_optional_industry_is_validated_and_changes_fingerprint(settings):
+    original = AppConfig.model_validate(settings)
+    assert original.industry is None
+    settings["industry"] = {"name": "Cloud infrastructure", "aliases": ["colocation"]}
+    configured = AppConfig.model_validate(settings)
+    assert configured.fingerprint != original.fingerprint
+    assert configured.industry.is_mentioned("New COLOCATION standards")
+    settings["industry"]["aliases"] = ["colocation", "COLocation"]
+    assert AppConfig.model_validate(settings).fingerprint == configured.fingerprint
+    settings["industry"]["name"] = " "
+    with pytest.raises(ValueError):
+        AppConfig.model_validate(settings)

@@ -1,13 +1,100 @@
-company:
-  name: Equinix
-  aliases: [Equinix]
+# Active example: data centres.
+# To switch examples, replace company, competitors, and industry below with ONE
+# commented example at the end of this file. Keep only one of each YAML key.
+# Names are included automatically; aliases are optional alternative names.
+# Avoid ambiguous aliases such as "AI", "AWS", or stock tickers when possible.
+# After editing: restart the app, then click Refresh news.
+# Docker: docker compose restart app
 
+# company:
+#   name: Equinix
+#   aliases: [Equinix]
+
+# competitors:
+#   - name: Digital Realty
+#     aliases: [Digital Realty, Digital Realty Trust]
+
+# # Optional sector scope for the third feed. Remove this section to disable it.
+# industry:
+#   name: Data centres
+#   aliases: [data centre, data center, data centers, datacenter, datacenters, colocation]
+
+
+
+# -----------------------------------------------------------------------------
+# Example 2: cloud infrastructure
+# Copy these three sections over the active sections above, removing the leading
+# "# " from each line. Keep the existing news section or adjust its limits.
+# -----------------------------------------------------------------------------
+company:
+  name: Amazon Web Services
+  aliases: [Amazon AWS]
 competitors:
-  - name: Digital Realty
-    aliases: [Digital Realty, Digital Realty Trust]
+  - name: Microsoft Azure
+    aliases: [Azure]
+  - name: Google Cloud
+    aliases: [Google Cloud Platform]
+industry:
+  name: Cloud infrastructure
+  aliases: [cloud computing, cloud infrastructure, cloud services, public cloud]
 
 news:
   language: en
   # Local display window; NewsData.io cannot backfill all seven days.
   recent_days: 7
   max_articles_per_source: 25
+
+# -----------------------------------------------------------------------------
+# Example 3: consumer electronics
+# "Apple Inc" is more precise than "Apple", but can miss shorter headlines.
+# Product aliases broaden coverage and may include reviews or incidental mentions.
+# -----------------------------------------------------------------------------
+# company:
+#   name: Apple
+#   aliases: [Apple Inc, iPhone, MacBook]
+# competitors:
+#   - name: Samsung Electronics
+#     aliases: [Samsung, Samsung Galaxy]
+# industry:
+#   name: Consumer electronics
+#   aliases: [smartphone, smartphones, consumer electronics, wearable devices]
+
+# -----------------------------------------------------------------------------
+# Example 4: beverages
+# -----------------------------------------------------------------------------
+# company:
+#   name: Coca-Cola
+#   aliases: [The Coca-Cola Company, Coca Cola]
+# competitors:
+#   - name: PepsiCo
+#     aliases: [Pepsi]
+# industry:
+#   name: Beverage industry
+#   aliases: [beverage industry, soft drinks, bottled drinks, beverage market]
+
+# -----------------------------------------------------------------------------
+# Example 5: electric vehicles
+# -----------------------------------------------------------------------------
+# company:
+#   name: Tesla
+#   aliases: [Tesla Motors]
+# competitors:
+#   - name: BYD
+#     aliases: [BYD Auto]
+#   - name: Rivian
+#     aliases: [Rivian Automotive]
+# industry:
+#   name: Electric vehicles
+#   aliases: [electric vehicle, electric vehicles, battery electric, EV charging]
+
+# Important coverage limits for these examples:
+# - NewsData.io searches the configured company and competitor names/aliases.
+# - Data Centre Magazine remains the fixed supplementary source. Changing the
+#   industry does not change this source or add general industry search queries.
+# - For sectors outside data centres, the industry feed may be sparse. Broader
+#   coverage would need an appropriate additional source or discovery queries.
+# - Industry labels use the configured scope; unrelated articles stay excluded.
+# - Omit industry (or set industry: null) to show only the two company feeds.
+# - Aliases must not be shared between the company and any competitor.
+# - Supported news settings: language en, recent_days 1–30, and
+#   max_articles_per_source 1–100. Higher caps increase work; AI calls remain capped.

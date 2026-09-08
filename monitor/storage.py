@@ -78,6 +78,7 @@ CREATE TABLE IF NOT EXISTS story_articles (
     position INTEGER NOT NULL,
     company INTEGER NOT NULL CHECK (company IN (0,1)),
     competitor INTEGER NOT NULL CHECK (competitor IN (0,1)),
+    industry INTEGER NOT NULL DEFAULT 0 CHECK (industry IN (0,1)),
     PRIMARY KEY (config_fingerprint, article_id),
     FOREIGN KEY (config_fingerprint, story_id)
         REFERENCES stories(config_fingerprint, id) ON DELETE CASCADE
@@ -116,7 +117,18 @@ def initialize_database(path: DatabasePath) -> None:
     Path(path).parent.mkdir(parents=True, exist_ok=True)
     with _connect(path, write=True) as connection:
         # executescript commits any pending transaction before running its script.
-        connection.executescript("BEGIN IMMEDIATE;\n" + _SCHEMA + "\nCOMMIT;")
+        connection.executescript("BEGIN IMMEDIATE;\n" + _SCHEMA)
+        columns = {
+            row["name"]
+            for row in connection.execute("PRAGMA table_info(story_articles)")
+        }
+        if "industry" not in columns:
+            # Existing classifications are unknown for this new label. Reanalysis
+            # supplies it on refresh; never treat old unclassified news as industry.
+            connection.execute(
+                "ALTER TABLE story_articles ADD COLUMN industry "
+                "INTEGER NOT NULL DEFAULT 0 CHECK (industry IN (0,1))"
+            )
 
 
 def _article(row: sqlite3.Row) -> Article:
@@ -374,7 +386,9 @@ def publish_stories(
                 ),
             )
             connection.executemany(
-                "INSERT INTO story_articles VALUES (?, ?, ?, ?, ?, ?)",
+                "INSERT INTO story_articles "
+                "(config_fingerprint, story_id, article_id, position, company, competitor, industry) "
+                "VALUES (?, ?, ?, ?, ?, ?, ?)",
                 [
                     (
                         config,
@@ -383,6 +397,7 @@ def publish_stories(
                         index,
                         article.company,
                         article.competitor,
+                        article.industry,
                     )
                     for index, article in enumerate(story.articles)
                 ],
@@ -413,6 +428,7 @@ def get_snapshot(path: DatabasePath, config_fingerprint: str) -> StorySnapshot |
                     member["article_id"],
                     bool(member["company"]),
                     bool(member["competitor"]),
+                    bool(member["industry"]),
                 )
             )
         stories = tuple(

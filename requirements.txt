@@ -1,4 +1,4 @@
-# Runtime dependencies verified so far; UI/grouping dependencies follow later.
+# Direct runtime dependencies. requirements.lock pins their transitive dependencies.
 newspaper4k==0.9.6
 pydantic==2.13.5
 python-dotenv==1.2.3
@@ -9,3 +9,4 @@ certifi==2026.7.22
 urllib3==2.7.0
 numpy==2.5.3
 scikit-learn==1.9.0
+streamlit==1.63.0

@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PR News Monitor — Interview Walkthrough</title>
+  <style>
+    :root {
+      --ink: #14243d;
+      --blue: #1e5aa8;
+      --signal: #22a690;
+      --paper: #f7f9fc;
+      --white: #ffffff;
+      --muted: #637086;
+      --line: #d7dfeb;
+      --warn: #b66b21;
+      --display: "Avenir Next", Avenir, "Helvetica Neue", sans-serif;
+      --body: Inter, ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      --mono: "SFMono-Regular", Consolas, monospace;
+    }
+
+    * { box-sizing: border-box; }
+    html, body { width: 100%; height: 100%; margin: 0; overflow: hidden; }
+    body { background: #dfe5ee; color: var(--ink); font-family: var(--body); }
+    button { font: inherit; }
+
+    .deck { position: relative; width: 100%; height: 100%; background: var(--paper); }
+    .slide {
+      position: absolute;
+      inset: 0;
+      display: grid;
+      grid-template-rows: auto 1fr auto;
+      padding: clamp(28px, 5vw, 72px) clamp(30px, 7vw, 104px) clamp(24px, 4vw, 56px) clamp(82px, 10vw, 140px);
+      opacity: 0;
+      visibility: hidden;
+      transform: translateY(18px);
+      transition: opacity 260ms ease, transform 260ms ease, visibility 260ms;
+      background:
+        linear-gradient(90deg, transparent 0 5.3%, rgba(30,90,168,.08) 5.3% 5.38%, transparent 5.38%),
+        var(--paper);
+    }
+    .slide.active { opacity: 1; visibility: visible; transform: translateY(0); z-index: 2; }
+    .slide::before {
+      content: "";
+      position: absolute;
+      left: 5%; top: 0; width: 7px; height: var(--signal-height, 16%);
+      background: var(--signal);
+      border-radius: 0 0 8px 8px;
+    }
+
+    .eyebrow { color: var(--blue); font: 700 13px/1 var(--mono); letter-spacing: .14em; text-transform: uppercase; }
+    h1, h2 { font-family: var(--display); letter-spacing: -.035em; margin: 0; }
+    h1 { font-size: clamp(54px, 7.4vw, 112px); line-height: .94; max-width: 1080px; }
+    h2 { font-size: clamp(38px, 5.2vw, 72px); line-height: 1; }
+    h3 { margin: 0 0 10px; font-size: clamp(20px, 2vw, 29px); line-height: 1.15; }
+    p { margin: 0; }
+    .lede { color: var(--muted); font-size: clamp(21px, 2.5vw, 35px); line-height: 1.34; max-width: 1000px; }
+    .accent { color: var(--blue); }
+    .slide-head { display: grid; gap: 14px; margin-bottom: clamp(24px, 4vh, 48px); }
+    .slide-body { min-height: 0; display: grid; align-content: center; }
+    .slide-foot { display: flex; justify-content: space-between; align-items: end; color: var(--muted); font-size: 13px; }
+    .slide-index { font: 700 14px var(--mono); color: var(--blue); }
+
+    .hero { align-content: center; gap: 38px; }
+    .hero-note { display: flex; align-items: center; gap: 16px; color: var(--muted); font-size: 18px; }
+    .hero-note::before { content: ""; width: 48px; height: 2px; background: var(--signal); }
+
+    .diagram-layout { grid-template-columns: minmax(250px, .62fr) minmax(500px, 1.38fr); gap: clamp(34px, 5vw, 80px); align-items: center; }
+    .diagram-copy { display: grid; gap: 22px; }
+    .diagram-copy p { color: var(--muted); font-size: clamp(17px, 1.7vw, 23px); line-height: 1.45; }
+    .diagram-note { padding-top: 18px; border-top: 2px solid var(--signal); color: var(--ink) !important; font-weight: 650; }
+    .diagram-image { display: grid; place-items: center; min-height: 0; height: min(69vh, 700px); }
+    .diagram-image img { display: block; max-width: 100%; max-height: 100%; object-fit: contain; filter: drop-shadow(0 10px 25px rgba(20,36,61,.08)); }
+
+    .pipeline { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0; align-items: start; }
+    .stage { position: relative; padding: 64px 28px 0 0; min-height: 250px; border-top: 2px solid var(--line); }
+    .stage::before { content: ""; position: absolute; top: -8px; left: 0; width: 14px; height: 14px; border-radius: 50%; background: var(--signal); }
+    .stage .number { position: absolute; top: 14px; color: var(--blue); font: 700 15px var(--mono); }
+    .stage p { color: var(--muted); font-size: clamp(16px, 1.5vw, 22px); line-height: 1.4; max-width: 250px; }
+
+    .feeds { display: grid; grid-template-columns: repeat(3, 1fr); gap: clamp(20px, 3vw, 44px); }
+    .feed { padding-top: 22px; border-top: 4px solid var(--blue); }
+    .feed:nth-child(3) { border-color: var(--signal); }
+    .feed .count { font: 700 clamp(48px, 7vw, 90px)/1 var(--display); letter-spacing: -.05em; }
+    .feed p { color: var(--muted); font-size: clamp(16px, 1.5vw, 21px); line-height: 1.35; margin-top: 14px; }
+    .proof-note { color: var(--muted); margin-top: 36px; font-size: 15px; }
+
+    .choices { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 60px; }
+    .choice { display: grid; grid-template-columns: 150px 1fr; gap: 22px; padding-top: 18px; border-top: 1px solid var(--line); }
+    .choice strong { color: var(--blue); font-size: 20px; }
+    .choice p { color: var(--muted); font-size: clamp(16px, 1.4vw, 20px); line-height: 1.4; }
+
+    .failure-grid { display: grid; grid-template-columns: .9fr 1.1fr; gap: 70px; align-items: center; }
+    .failure-list { display: grid; gap: 24px; }
+    .failure { padding-left: 20px; border-left: 3px solid var(--warn); }
+    .failure strong { display: block; font-size: 21px; margin-bottom: 5px; }
+    .failure span { color: var(--muted); font-size: 18px; line-height: 1.35; }
+    .promise { padding: 34px; border: 1px solid var(--line); background: var(--white); }
+    .promise .big { font: 700 clamp(30px, 4vw, 52px)/1.06 var(--display); letter-spacing: -.035em; }
+    .promise p { margin-top: 20px; color: var(--muted); font-size: 19px; line-height: 1.45; }
+
+    .evidence { display: grid; grid-template-columns: 1fr 1fr; gap: 70px; align-items: center; }
+    .test-number { font: 700 clamp(90px, 14vw, 180px)/.8 var(--display); letter-spacing: -.07em; color: var(--blue); }
+    .test-label { margin-top: 26px; font-size: 24px; color: var(--muted); }
+    .checks { display: grid; gap: 22px; }
+    .check { font-size: clamp(18px, 1.8vw, 25px); padding-bottom: 18px; border-bottom: 1px solid var(--line); }
+    .check::before { content: "✓"; color: var(--signal); font-weight: 800; margin-right: 14px; }
+
+    .ops { display: grid; grid-template-columns: .88fr 1.12fr; gap: clamp(40px, 6vw, 86px); align-items: start; }
+    .ops-column { display: grid; gap: 0; }
+    .ops-label { padding-bottom: 14px; border-bottom: 4px solid var(--blue); color: var(--blue); font: 700 14px var(--mono); letter-spacing: .08em; text-transform: uppercase; }
+    .ops-column.target .ops-label { color: var(--signal); border-color: var(--signal); }
+    .ops-item { padding: 12px 0; border-bottom: 1px solid var(--line); }
+    .ops-item strong { display: block; margin-bottom: 5px; font-size: clamp(18px, 1.7vw, 24px); }
+    .ops-item p { color: var(--muted); font-size: clamp(15px, 1.35vw, 19px); line-height: 1.35; }
+    .ops-gap { margin-top: 18px; color: var(--warn); font-size: 16px; line-height: 1.4; }
+
+    .production { display: grid; grid-template-columns: 1fr 1fr; gap: 28px 66px; }
+    .priority { padding-top: 16px; border-top: 1px solid var(--line); }
+    .priority small { color: var(--blue); font: 700 13px var(--mono); }
+    .priority h3 { margin-top: 12px; }
+    .priority p { color: var(--muted); font-size: 18px; line-height: 1.4; }
+
+    .closing { align-content: center; gap: 32px; }
+    .closing h2 { max-width: 950px; font-size: clamp(48px, 6.8vw, 94px); }
+    .closing .line { width: 120px; height: 5px; background: var(--signal); }
+
+    .controls { position: fixed; z-index: 10; right: 22px; bottom: 18px; display: flex; gap: 8px; }
+    .controls button { width: 42px; height: 42px; border: 1px solid rgba(20,36,61,.18); background: rgba(255,255,255,.9); color: var(--ink); cursor: pointer; }
+    .controls button:hover { background: var(--white); }
+    .controls button:focus-visible { outline: 3px solid var(--signal); outline-offset: 3px; }
+    .progress { position: fixed; left: 0; bottom: 0; height: 4px; background: var(--signal); z-index: 12; transition: width 240ms ease; }
+    .speaker { position: fixed; z-index: 9; right: 24px; top: 20px; color: var(--muted); font: 700 12px var(--mono); }
+
+    @media (max-width: 800px) {
+      .slide { overflow-y: auto; padding: 34px 28px 70px 48px; }
+      .pipeline, .feeds, .choices, .production, .failure-grid, .evidence, .diagram-layout, .ops { grid-template-columns: 1fr; gap: 22px; }
+      .diagram-image { height: auto; max-height: none; }
+      .stage { min-height: 0; padding: 32px 0 18px 40px; border-top: 0; border-left: 2px solid var(--line); }
+      .stage::before { top: 7px; left: -8px; }
+      .stage .number { top: 5px; left: 18px; }
+      .choice { grid-template-columns: 120px 1fr; }
+      .feed .count { font-size: 52px; }
+      .speaker { display: none; }
+    }
+    @media (prefers-reduced-motion: reduce) { .slide, .progress { transition: none; } }
+    @media print {
+      html, body { height: auto; overflow: visible; background: white; }
+      .deck { height: auto; }
+      .slide { position: relative; visibility: visible; opacity: 1; transform: none; width: 100vw; height: 56.25vw; break-after: page; }
+      .controls, .progress, .speaker { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="deck" aria-live="polite">
+    <section class="slide active" style="--signal-height:22%" aria-label="Slide 1 of 8">
+      <div class="slide-head"><span class="eyebrow">Onsite interview · five-minute walkthrough</span></div>
+      <div class="slide-body hero">
+        <h1>News monitoring<br><span class="accent">without the noise.</span></h1>
+        <p class="lede">A configurable PR dashboard that groups duplicate coverage, explains each story, and keeps the original evidence one click away.</p>
+        <p class="hero-note">Equinix · Digital Realty · Data centre industry</p>
+      </div>
+      <footer class="slide-foot"><span>PR News Monitor</span><span class="slide-index">01 / 08</span></footer>
+    </section>
+
+    <section class="slide" style="--signal-height:30%" aria-label="Slide 2 of 8">
+      <header class="slide-head"><span class="eyebrow">System overview</span><h2>The complete flow</h2></header>
+      <div class="slide-body diagram-layout">
+        <div class="diagram-copy">
+          <h3>From monitoring scope to evidence-backed feeds</h3>
+          <p>This is the full implementation path: discovery, extraction, persistence, grouping, analysis, and dashboard publication.</p>
+          <p class="diagram-note">The current dashboard also includes the optional Industry feed. It uses the same saved articles and analysis flow.</p>
+        </div>
+        <figure class="diagram-image">
+          <img src="pr-news-monitor-flow.jpg" alt="Flow diagram from company and competitor configuration through article discovery, text extraction, duplicate checks, grouping, LLM analysis, and dashboard feeds">
+        </figure>
+      </div>
+      <footer class="slide-foot"><span>Detailed implementation flow</span><span class="slide-index">02 / 08</span></footer>
+    </section>
+
+    <section class="slide" style="--signal-height:40%" aria-label="Slide 3 of 8">
+      <header class="slide-head"><span class="eyebrow">The refresh path</span><h2>One flow, clear boundaries</h2></header>
+      <div class="slide-body pipeline">
+        <article class="stage"><span class="number">01</span><h3>Discover</h3><p>NewsData.io plus Data Centre Magazine.</p></article>
+        <article class="stage"><span class="number">02</span><h3>Extract</h3><p>Save metadata first. Use full text when publishers allow it.</p></article>
+        <article class="stage"><span class="number">03</span><h3>Group + analyze</h3><p>TF-IDF groups related reports. OpenRouter summarizes and labels relevance.</p></article>
+        <article class="stage"><span class="number">04</span><h3>Publish</h3><p>SQLite swaps in one complete snapshot for all three feeds.</p></article>
+      </div>
+      <footer class="slide-foot"><span>UI → pipeline → focused modules → storage</span><span class="slide-index">03 / 08</span></footer>
+    </section>
+
+    <section class="slide" style="--signal-height:50%" aria-label="Slide 4 of 8">
+      <header class="slide-head"><span class="eyebrow">Verified Docker refresh</span><h2>Three views of the same evidence</h2></header>
+      <div class="slide-body">
+        <div class="feeds">
+          <article class="feed"><div class="count">9</div><h3>Equinix stories</h3><p>Direct company coverage and substantive mentions.</p></article>
+          <article class="feed"><div class="count">9</div><h3>Competitor stories</h3><p>Digital Realty coverage. Stories may overlap the company feed.</p></article>
+          <article class="feed"><div class="count">38</div><h3>Industry stories</h3><p>Broader data centre developments, including 23 industry-only stories.</p></article>
+        </div>
+        <p class="proof-note">39 grouped stories · 20 AI analyses · 19 explicit budget fallbacks · 59.2-second refresh. Integration evidence, not an accuracy benchmark.</p>
+      </div>
+      <footer class="slide-foot"><span>Independent labels allow useful overlap</span><span class="slide-index">04 / 08</span></footer>
+    </section>
+
+    <section class="slide" style="--signal-height:60%" aria-label="Slide 5 of 8">
+      <header class="slide-head"><span class="eyebrow">Engineering choices</span><h2>Simple choices with known limits</h2></header>
+      <div class="slide-body choices">
+        <article class="choice"><strong>Streamlit</strong><p>One Python application to build and deploy. Long refreshes occupy the initiating session.</p></article>
+        <article class="choice"><strong>SQLite</strong><p>Durable local results with no extra service. One process is the intended deployment.</p></article>
+        <article class="choice"><strong>TF-IDF</strong><p>Cheap, deterministic grouping. It can miss paraphrases or confuse similarly worded events.</p></article>
+        <article class="choice"><strong>LLM + Pydantic</strong><p>Summary and three relevance labels in one call. Validation catches bad structure, not factual errors.</p></article>
+        <article class="choice"><strong>YAML</strong><p>Settings stay reviewable and versionable. Users restart and refresh after changes.</p></article>
+        <article class="choice"><strong>Bounded work</strong><p>Caps protect latency and API spend. Coverage is a recent sample, not an exhaustive archive.</p></article>
+      </div>
+      <footer class="slide-foot"><span>Complexity follows demonstrated need</span><span class="slide-index">05 / 08</span></footer>
+    </section>
+
+    <section class="slide" style="--signal-height:70%" aria-label="Slide 6 of 8">
+      <header class="slide-head"><span class="eyebrow">Failure behavior</span><h2>Useful results survive imperfect inputs</h2></header>
+      <div class="slide-body failure-grid">
+        <div class="failure-list">
+          <article class="failure"><strong>Article extraction fails</strong><span>Keep its snippet and label the limitation.</span></article>
+          <article class="failure"><strong>One source fails</strong><span>Publish coverage from the other source.</span></article>
+          <article class="failure"><strong>AI fails or reaches its cap</strong><span>Use a visible headline and keyword fallback.</span></article>
+          <article class="failure"><strong>Dates or settings change</strong><span>Show “Unknown” or require fresh classifications.</span></article>
+        </div>
+        <aside class="promise"><div class="big">The last good snapshot stays visible.</div><p>Atomic publication prevents partial replacements. A process-wide lock rejects overlapping refreshes, and normal page reruns never call the APIs.</p></aside>
+      </div>
+      <footer class="slide-foot"><span>Failure is a product state, not a hidden exception</span><span class="slide-index">06 / 08</span></footer>
+    </section>
+
+    <section class="slide" style="--signal-height:82%" aria-label="Slide 7 of 8">
+      <header class="slide-head"><span class="eyebrow">Operations</span><h2>Operations today and in production</h2></header>
+      <div class="slide-body ops">
+        <div class="ops-column">
+          <div class="ops-label">Prototype today</div>
+          <article class="ops-item"><strong>Refresh history</strong><p>SQLite stores status, start and finish times, source counts, and safe failure messages.</p></article>
+          <article class="ops-item"><strong>Runtime signals</strong><p>Container stdout shows startup and failures. Streamlit exposes a health endpoint.</p></article>
+          <article class="ops-item"><strong>Verification</strong><p>140 tests pass locally and in Linux. Live checks cover both sources, OpenRouter, and volume persistence.</p></article>
+          <p class="ops-gap">Missing today: structured application logs, distributed traces, metric dashboards, and automated alerts.</p>
+        </div>
+        <div class="ops-column target">
+          <div class="ops-label">Before production</div>
+          <article class="ops-item"><strong>Structured logs</strong><p>Emit JSON events with refresh ID, source, stage, duration, outcome, and safe error category.</p></article>
+          <article class="ops-item"><strong>End-to-end traces</strong><p>Trace discovery, extraction, grouping, each model request, and atomic publication under one refresh.</p></article>
+          <article class="ops-item"><strong>Metrics that answer operational questions</strong><p>Track snapshot age, refresh latency, articles per source, extraction success, fallback rate, model latency, tokens, and cost.</p></article>
+          <article class="ops-item"><strong>Actionable alerts</strong><p>Alert on stale coverage, repeated source failure, high fallback rate, job backlog, and unusual API spend.</p></article>
+        </div>
+      </div>
+      <footer class="slide-foot"><span>Health says the app is up; observability says whether monitoring works</span><span class="slide-index">07 / 08</span></footer>
+    </section>
+
+    <section class="slide" style="--signal-height:100%" aria-label="Slide 8 of 8">
+      <header class="slide-head"><span class="eyebrow">Production direction</span><h2>Improve in the order risk appears</h2></header>
+      <div class="slide-body production">
+        <article class="priority"><small>FIRST</small><h3>Measure quality</h3><p>Label a real news sample. Evaluate grouping, dates, relevance, and summary accuracy before changing models.</p></article>
+        <article class="priority"><small>BEFORE PUBLIC USE</small><h3>Protect access and data</h3><p>Add authentication, managed secrets, API limits, source policies, and tested backups.</p></article>
+        <article class="priority"><small>WHEN MONITORING BECOMES CONTINUOUS</small><h3>Move work to jobs</h3><p>Add scheduling, durable retries, freshness alerts, source metrics, and cost tracking.</p></article>
+        <article class="priority"><small>WHEN ONE PROCESS ISN'T ENOUGH</small><h3>Change the architecture</h3><p>Use PostgreSQL and shared job coordination. Add FastAPI or a richer frontend when another client needs it.</p></article>
+      </div>
+      <footer class="slide-foot"><span>Working prototype first; measured evolution next</span><span class="slide-index">08 / 08</span></footer>
+    </section>
+  </main>
+
+  <div class="speaker" id="hint">← → or Space · Home · End</div>
+  <nav class="controls" aria-label="Presentation controls">
+    <button id="prev" type="button" aria-label="Previous slide">←</button>
+    <button id="next" type="button" aria-label="Next slide">→</button>
+  </nav>
+  <div class="progress" id="progress" aria-hidden="true"></div>
+
+  <script>
+    const slides = [...document.querySelectorAll('.slide')];
+    const progress = document.getElementById('progress');
+    let current = Math.min(Math.max(Number(location.hash.slice(1) || 1), 1), slides.length) - 1;
+
+    function show(index) {
+      current = Math.min(Math.max(index, 0), slides.length - 1);
+      slides.forEach((slide, i) => {
+        slide.classList.toggle('active', i === current);
+        slide.setAttribute('aria-hidden', i === current ? 'false' : 'true');
+      });
+      progress.style.width = `${((current + 1) / slides.length) * 100}%`;
+      history.replaceState(null, '', `#${current + 1}`);
+      document.getElementById('prev').disabled = current === 0;
+      document.getElementById('next').disabled = current === slides.length - 1;
+    }
+
+    document.getElementById('prev').addEventListener('click', () => show(current - 1));
+    document.getElementById('next').addEventListener('click', () => show(current + 1));
+    document.addEventListener('keydown', (event) => {
+      if (['ArrowRight', 'PageDown', ' '].includes(event.key)) { event.preventDefault(); show(current + 1); }
+      if (['ArrowLeft', 'PageUp'].includes(event.key)) { event.preventDefault(); show(current - 1); }
+      if (event.key === 'Home') show(0);
+      if (event.key === 'End') show(slides.length - 1);
+    });
+    let touchStart = null;
+    document.addEventListener('touchstart', e => { touchStart = e.changedTouches[0].clientX; }, {passive: true});
+    document.addEventListener('touchend', e => {
+      if (touchStart === null) return;
+      const delta = e.changedTouches[0].clientX - touchStart;
+      if (Math.abs(delta) > 50) show(current + (delta < 0 ? 1 : -1));
+      touchStart = null;
+    }, {passive: true});
+    show(current);
+  </script>
+</body>
+</html>

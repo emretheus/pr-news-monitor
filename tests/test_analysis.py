@@ -40,8 +40,13 @@ def valid_output():
     return {
         "description": "Equinix and Digital Realty are expanding data centre capacity in Berlin.",
         "articles": [
-            {"article_id": "b", "company": False, "competitor": False},
-            {"article_id": "a", "company": True, "competitor": True},
+            {
+                "article_id": "b",
+                "company": False,
+                "competitor": False,
+                "industry": True,
+            },
+            {"article_id": "a", "company": True, "competitor": True, "industry": True},
         ],
     }
 
@@ -98,6 +103,8 @@ def test_valid_output_maps_exact_ids_in_original_order(monkeypatch, group):
         not result.story.articles[1].company and not result.story.articles[1].competitor
     )
     assert result.request_made
+    assert result.story.industry_relevant
+    assert all(label.industry for label in result.story.articles)
     assert not post.call_args.kwargs["allow_redirects"]
     payload = post.call_args.kwargs["json"]
     assert payload["response_format"]["json_schema"]["strict"]
@@ -114,6 +121,8 @@ def test_valid_output_maps_exact_ids_in_original_order(monkeypatch, group):
         "extra_field",
         "empty_description",
         "long_description",
+        "missing_industry",
+        "invalid_industry",
     ],
 )
 def test_invalid_analysis_uses_fallback(monkeypatch, group, problem):
@@ -130,6 +139,10 @@ def test_invalid_analysis_uses_fallback(monkeypatch, group, problem):
         output["instruction"] = "unexpected field"
     elif problem == "empty_description":
         output["description"] = "  "
+    elif problem == "missing_industry":
+        del output["articles"][0]["industry"]
+    elif problem == "invalid_industry":
+        output["articles"][0]["industry"] = "true"
     else:
         output["description"] = "x" * 1201
     monkeypatch.setattr(analysis.requests, "post", Mock(return_value=response(output)))
@@ -137,6 +150,27 @@ def test_invalid_analysis_uses_fallback(monkeypatch, group, problem):
     assert result.story.analysis_status == AnalysisStatus.FALLBACK
     assert result.story.description == group.articles[0].title
     assert result.error == "OpenRouter returned invalid or incomplete analysis."
+
+
+def test_industry_fallback_requires_configured_terms(group):
+    story = analysis.fallback_story(group, load_config(), "test")
+    assert story.articles[0].industry  # Full text mentions data centres.
+    assert not story.articles[1].industry  # Unrelated energy news is not a catch-all.
+    disabled = load_config().model_copy(update={"industry": None})
+    assert not analysis.fallback_story(group, disabled, "test").industry_relevant
+
+
+def test_disabled_industry_cannot_be_enabled_by_model(monkeypatch, group):
+    monkeypatch.setattr(analysis.requests, "post", Mock(return_value=response()))
+    result = analysis.analyze_group(
+        group,
+        load_config().model_copy(update={"industry": None}),
+        api_key="test",
+        model="test",
+        deadline=time.monotonic() + 10,
+    )
+    assert result.story.analysis_status == AnalysisStatus.SUCCESS
+    assert not result.story.industry_relevant
 
 
 @pytest.mark.parametrize(

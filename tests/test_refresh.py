@@ -1,4 +1,5 @@
 from dataclasses import replace
+from threading import Event, Thread
 from unittest.mock import Mock
 
 import pytest
@@ -163,3 +164,52 @@ def test_unexpected_analysis_failure_keeps_previous_results_and_records_failed_a
         )
     assert get_snapshot(db, config.fingerprint).refresh_id == previous
     assert get_latest_refresh(db, config.fingerprint).status == RefreshStatus.FAILED
+
+
+def test_refresh_guard_blocks_other_sessions_and_releases_after_completion(
+    monkeypatch, db
+):
+    entered, release = Event(), Event()
+    errors = []
+
+    def ingest(*args, **kwargs):
+        entered.set()
+        assert release.wait(timeout=5)
+        return pipeline.IngestionResult(
+            (), (SourceOutcome("newsdata", "failed"),), 0, 0, 0
+        )
+
+    monkeypatch.setattr(pipeline, "ingest_news", ingest)
+    kwargs = {"newsdata_api_key": "", "openrouter_api_key": "", "model": "model"}
+
+    def worker():
+        try:
+            pipeline.refresh_news(load_config(), db, **kwargs)
+        except Exception as error:  # noqa: BLE001 - propagate any worker failure to the test thread.
+            errors.append(error)
+
+    thread = Thread(target=worker)
+    thread.start()
+    try:
+        assert entered.wait(timeout=5)
+        assert pipeline.refresh_in_progress()
+        with pytest.raises(pipeline.RefreshInProgress):
+            pipeline.refresh_news(load_config(), db, **kwargs)
+    finally:
+        release.set()
+        thread.join(timeout=5)
+    assert not errors
+    assert not pipeline.refresh_in_progress()
+
+
+def test_guard_releases_when_database_startup_fails(monkeypatch, db):
+    monkeypatch.setattr(
+        pipeline,
+        "start_refresh",
+        Mock(side_effect=RuntimeError("Database unavailable")),
+    )
+    with pytest.raises(RuntimeError):
+        pipeline.refresh_news(
+            load_config(), db, newsdata_api_key="", openrouter_api_key="", model="model"
+        )
+    assert not pipeline.refresh_in_progress()
