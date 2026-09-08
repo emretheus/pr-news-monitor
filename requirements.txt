@@ -1,0 +1,11 @@
+# Runtime dependencies verified so far; UI/grouping dependencies follow later.
+newspaper4k==0.9.6
+pydantic==2.13.5
+python-dotenv==1.2.3
+PyYAML==6.0.3
+requests==2.34.2
+beautifulsoup4==4.15.0
+certifi==2026.7.22
+urllib3==2.7.0
+numpy==2.5.3
+scikit-learn==1.9.0

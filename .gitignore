@@ -1,0 +1,13 @@
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.py[cod]
+*.db
+*.db-shm
+*.db-wal
+.DS_Store

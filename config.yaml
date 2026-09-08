@@ -1,0 +1,13 @@
+company:
+  name: Equinix
+  aliases: [Equinix]
+
+competitors:
+  - name: Digital Realty
+    aliases: [Digital Realty, Digital Realty Trust]
+
+news:
+  language: en
+  # Local display window; NewsData.io cannot backfill all seven days.
+  recent_days: 7
+  max_articles_per_source: 25
