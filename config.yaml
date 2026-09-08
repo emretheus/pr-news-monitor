@@ -6,19 +6,15 @@
 # After editing: restart the app, then click Refresh news.
 # Docker: docker compose restart app
 
-# company:
-#   name: Equinix
-#   aliases: [Equinix]
-
-# competitors:
-#   - name: Digital Realty
-#     aliases: [Digital Realty, Digital Realty Trust]
-
-# # Optional sector scope for the third feed. Remove this section to disable it.
-# industry:
-#   name: Data centres
-#   aliases: [data centre, data center, data centers, datacenter, datacenters, colocation]
-
+company:
+  name: Equinix
+  aliases: [Equinix]
+competitors:
+  - name: Digital Realty
+    aliases: [Digital Realty, Digital Realty Trust]
+industry:
+  name: Data centres
+  aliases: [data centre, data center, data centers, datacenter, datacenters, colocation]
 
 
 # -----------------------------------------------------------------------------
@@ -26,17 +22,17 @@
 # Copy these three sections over the active sections above, removing the leading
 # "# " from each line. Keep the existing news section or adjust its limits.
 # -----------------------------------------------------------------------------
-company:
-  name: Amazon Web Services
-  aliases: [Amazon AWS]
-competitors:
-  - name: Microsoft Azure
-    aliases: [Azure]
-  - name: Google Cloud
-    aliases: [Google Cloud Platform]
-industry:
-  name: Cloud infrastructure
-  aliases: [cloud computing, cloud infrastructure, cloud services, public cloud]
+# company:
+#   name: Amazon Web Services
+#   aliases: [Amazon AWS]
+# competitors:
+#   - name: Microsoft Azure
+#     aliases: [Azure]
+#   - name: Google Cloud
+#     aliases: [Google Cloud Platform]
+# industry:
+#   name: Cloud infrastructure
+#   aliases: [cloud computing, cloud infrastructure, cloud services, public cloud]
 
 news:
   language: en

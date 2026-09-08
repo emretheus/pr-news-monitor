@@ -4,6 +4,7 @@ import html
 import os
 import re
 import sqlite3
+from collections import Counter
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
@@ -11,7 +12,7 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
-from monitor.config import AppConfig, ConfigError, load_config
+from monitor.config import AppConfig, ConfigError, EntityConfig, load_config
 from monitor.http import FetchError, normalize_url
 from monitor.models import (
     AnalysisStatus,
@@ -68,6 +69,92 @@ def startup() -> RuntimeSettings:
         setting("OPENROUTER_API_KEY"),
         setting("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
     )
+
+
+PRESETS: dict[str, dict[str, object]] = {
+    "Data centres: Equinix vs Digital Realty": {
+        "company": ("Equinix", ["Equinix"]),
+        "competitors": [("Digital Realty", ["Digital Realty", "Digital Realty Trust"])],
+        "industry": (
+            "Data centres",
+            ["data centre", "data center", "data centers", "datacenter", "datacenters", "colocation"],
+        ),
+    },
+    "Cloud: AWS vs Azure + Google Cloud": {
+        "company": ("Amazon Web Services", ["Amazon AWS"]),
+        "competitors": [("Microsoft Azure", ["Azure"]), ("Google Cloud", ["Google Cloud Platform"])],
+        "industry": (
+            "Cloud infrastructure",
+            ["cloud computing", "cloud infrastructure", "cloud services", "public cloud"],
+        ),
+    },
+    "Phones: Apple vs Samsung": {
+        "company": ("Apple", ["Apple Inc", "iPhone", "MacBook"]),
+        "competitors": [("Samsung Electronics", ["Samsung", "Samsung Galaxy"])],
+        "industry": (
+            "Consumer electronics",
+            ["smartphone", "smartphones", "consumer electronics", "wearable devices"],
+        ),
+    },
+    "Drinks: Coca-Cola vs PepsiCo": {
+        "company": ("Coca-Cola", ["The Coca-Cola Company", "Coca Cola"]),
+        "competitors": [("PepsiCo", ["Pepsi"])],
+        "industry": (
+            "Beverage industry",
+            ["beverage industry", "soft drinks", "bottled drinks", "beverage market"],
+        ),
+    },
+    "EVs: Tesla vs BYD + Rivian": {
+        "company": ("Tesla", ["Tesla Motors"]),
+        "competitors": [("BYD", ["BYD Auto"]), ("Rivian", ["Rivian Automotive"])],
+        "industry": (
+            "Electric vehicles",
+            ["electric vehicle", "electric vehicles", "battery electric", "EV charging"],
+        ),
+    },
+}
+
+
+def _entity(name: str, aliases: list[str]) -> EntityConfig:
+    return EntityConfig(name=name.strip(), aliases=tuple(a.strip() for a in aliases if a.strip()))
+
+
+def preset_to_config(preset: str, base: AppConfig) -> AppConfig:
+    spec = PRESETS[preset]
+    company_name, company_aliases = spec["company"]  # type: ignore[misc]
+    competitors = spec["competitors"]  # type: ignore[assignment]
+    industry_name, industry_aliases = spec["industry"]  # type: ignore[misc]
+    return AppConfig(
+        company=_entity(company_name, company_aliases),  # type: ignore[arg-type]
+        competitors=tuple(_entity(n, a) for n, a in competitors),  # type: ignore[misc]
+        industry=_entity(industry_name, industry_aliases),  # type: ignore[arg-type]
+        news=base.news,
+    )
+
+
+def custom_to_config(
+    company: str, competitors: str, base: AppConfig, industry: str = ""
+) -> AppConfig:
+    names = [part.strip() for part in competitors.split(",") if part.strip()]
+    if not company.strip():
+        raise ConfigError("Company name must not be blank.")
+    if not names:
+        raise ConfigError("Add at least one competitor, comma separated.")
+    try:
+        sector = _entity(industry, [industry]) if industry.strip() else base.industry
+        return AppConfig(
+            company=_entity(company, [company]),
+            competitors=tuple(_entity(name, [name]) for name in names),
+            industry=sector,
+            news=base.news,
+        )
+    except ValueError as exc:
+        raise ConfigError(f"Invalid configuration: {exc}") from exc
+
+
+def effective_config(base: AppConfig) -> AppConfig:
+    custom = st.session_state.get("custom_config")
+    return custom if isinstance(custom, AppConfig) else base
 
 
 def safe_text(text: str) -> str:
@@ -155,11 +242,93 @@ def render_story(story: Story, articles: dict[str, Article]) -> None:
                 )
 
 
+def render_config_selector(base: AppConfig) -> AppConfig:
+    """Demo presets + custom names. YAML stays the fallback; selection needs refresh."""
+    with st.expander("Tracked entities & demo presets", expanded=False):
+        industry_txt = f" · Sector: {base.industry.name}" if base.industry else ""
+        st.caption(
+            safe_text(
+                f"YAML default: {base.company.name} vs "
+                + ", ".join(e.name for e in base.competitors)
+                + industry_txt
+                + ". Selection applies instantly to display; select Refresh news to fetch."
+            )
+        )
+        preset = st.selectbox("Try an example", list(PRESETS.keys()), key="preset_choice")
+        if st.button("Use this preset", key="use_preset"):
+            try:
+                st.session_state["custom_config"] = preset_to_config(preset, base)
+                st.session_state["custom_label"] = preset
+            except ValueError as exc:
+                st.error(f"Invalid preset: {exc}")
+        st.divider()
+        company = st.text_input("Company", value="", placeholder="e.g. Apple", key="company_input")
+        competitors = st.text_input(
+            "Competitors (comma separated)",
+            value="",
+            placeholder="e.g. Samsung, Google",
+            key="competitors_input",
+        )
+        industry = st.text_input(
+            "Sector (optional, blank = keep YAML sector)",
+            value="",
+            placeholder="e.g. Consumer electronics",
+            key="industry_input",
+        )
+        left, right = st.columns(2)
+        with left:
+            if st.button("Apply custom", key="apply_custom"):
+                try:
+                    st.session_state["custom_config"] = custom_to_config(
+                        company, competitors, base, industry
+                    )
+                    st.session_state["custom_label"] = "Custom selection"
+                except ConfigError as exc:
+                    st.error(str(exc))
+        with right:
+            if st.button("Reset to YAML", key="reset_config"):
+                st.session_state["custom_config"] = None
+                st.session_state["custom_label"] = None
+    return effective_config(base)
+
+
+def render_overview(
+    stories: tuple[Story, ...], articles: dict[str, Article]
+) -> None:
+    """Small PR-useful visual: volume metrics + top publishers. No show-only charts."""
+    if not stories:
+        return
+    company = sum(1 for s in stories if s.company_relevant)
+    competitor = sum(1 for s in stories if s.competitor_relevant)
+    fallbacks = sum(1 for s in stories if s.analysis_status != AnalysisStatus.SUCCESS)
+    with st.expander("Coverage overview", expanded=False):
+        m1, m2, m3, m4 = st.columns(4)
+        m1.metric("Stories", len(stories))
+        m2.metric("Company", company)
+        m3.metric("Competitors", competitor)
+        m4.metric("Fallbacks", fallbacks)
+        counts = Counter(
+            (articles[l.article_id].publisher or "Unknown")
+            for s in stories
+            for l in s.articles
+            if l.article_id in articles
+        )
+        if counts:
+            st.caption("Articles per publisher (top 10)")
+            top = dict(counts.most_common(10))
+            try:
+                import pandas as pd
+
+                st.bar_chart(pd.Series(top))
+            except Exception:
+                st.bar_chart(top)
+
+
 def request_refresh() -> None:
     st.session_state["refresh_requested"] = True
 
 
-def run_refresh(settings: RuntimeSettings, placeholder) -> None:
+def run_refresh(settings: RuntimeSettings, config: AppConfig, placeholder) -> None:
     # Consume the request before doing work: a later rerun must not repeat API calls.
     st.session_state["refresh_requested"] = False
     try:
@@ -168,7 +337,7 @@ def run_refresh(settings: RuntimeSettings, placeholder) -> None:
             st.status("Refreshing news…", expanded=True) as status,
         ):
             result = refresh_news(
-                settings.config,
+                config,
                 settings.database,
                 newsdata_api_key=settings.newsdata_key,
                 openrouter_api_key=settings.openrouter_key,
@@ -179,20 +348,20 @@ def run_refresh(settings: RuntimeSettings, placeholder) -> None:
             if result.grouping_limited:
                 messages.append("Only the latest 200 saved articles were grouped.")
             st.session_state["refresh_messages"] = (
-                settings.config.fingerprint,
+                config.fingerprint,
                 messages,
             )
             status.update(label="Refresh complete", state="complete", expanded=False)
     except RefreshInProgress:
         st.session_state["refresh_messages"] = (
-            settings.config.fingerprint,
+            config.fingerprint,
             [
                 "Another visitor is refreshing the news. Wait, then reload the page to see their results."
             ],
         )
     except Exception:  # noqa: BLE001 - show a safe message, not credentials or an internal traceback.
         st.session_state["refresh_messages"] = (
-            settings.config.fingerprint,
+            config.fingerprint,
             [
                 "The refresh could not finish. Previously published results remain available. Check the local setup before trying again."
             ],
@@ -212,20 +381,24 @@ def main() -> None:
             "News storage could not be opened. Check that the configured data directory is writable."
         )
         st.stop()
-    config = settings.config
-    st.caption("PRESS COVERAGE · COMPANY & COMPETITORS")
+    config = render_config_selector(settings.config)
+    st.caption("PRESS COVERAGE · COMPANY & COMPETITORS & INDUSTRY")
     heading, controls = st.columns([4, 1], vertical_alignment="center")
     with heading:
         st.title("PR News Monitor")
         competitors = ", ".join(entity.name for entity in config.competitors)
+        label = st.session_state.get("custom_label")
+        suffix = f" · {label}" if label and st.session_state.get("custom_config") else " · YAML default"
+        sector = f" · Sector: {config.industry.name}" if config.industry else ""
         st.caption(
-            safe_text(f"Monitoring {config.company.name} · Competitors: {competitors}")
+            safe_text(f"Monitoring {config.company.name} · Competitors: {competitors}{sector}{suffix}")
         )
     requested = st.session_state.get("refresh_requested", False)
     busy = refresh_in_progress()
     with controls:
         st.button(
             "Refresh news",
+            key="refresh_news",
             type="primary",
             on_click=request_refresh,
             disabled=busy or requested,
@@ -300,6 +473,7 @@ def main() -> None:
         for message in messages:
             st.warning(safe_text(message))
     stories = snapshot.stories if snapshot else ()
+    render_overview(stories, articles)
     company = [story for story in stories if story.company_relevant]
     competitor = [story for story in stories if story.competitor_relevant]
     feeds = [company, competitor]
@@ -329,7 +503,7 @@ def main() -> None:
         "Coverage is a bounded sample. NewsData.io's free feed is delayed; original publication dates may be unavailable."
     )
     if requested:
-        run_refresh(settings, progress_area)
+        run_refresh(settings, config, progress_area)
 
 
 if __name__ == "__main__":

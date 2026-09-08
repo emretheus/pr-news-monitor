@@ -78,8 +78,9 @@ def test_saved_story_appears_in_both_feeds_with_fallback_and_unknown_date(db):
     seed(db)
     app = AppTest.from_file(APP).run()
     assert not app.exception
+    company = load_config().company.name
     assert [tab.label for tab in app.tabs] == [
-        "Equinix (1)",
+        f"{company} (1)",
         "Competitors (1)",
         "Industry (0)",
     ]
@@ -115,10 +116,10 @@ def test_refresh_click_runs_once_and_reenables_button(db, monkeypatch):
     call = Mock(side_effect=refresh)
     monkeypatch.setattr(pipeline, "refresh_news", call)
     app = AppTest.from_file(APP).run()
-    app.button[0].click().run()
+    app.button(key="refresh_news").click().run()
     assert not app.exception
     assert call.call_count == 1
-    assert not app.button[0].disabled
+    assert not app.button(key="refresh_news").disabled
     app.run()
     assert call.call_count == 1
 
@@ -127,7 +128,7 @@ def test_busy_refresh_disables_button(db, monkeypatch):
     monkeypatch.setattr(pipeline, "refresh_in_progress", lambda: True)
     app = AppTest.from_file(APP).run()
     assert not app.exception
-    assert app.button[0].disabled
+    assert app.button(key="refresh_news").disabled
 
 
 def test_changed_configuration_does_not_show_old_classifications(
@@ -175,8 +176,9 @@ def test_industry_feed_supports_overlap_and_excludes_unrelated_stories(db, monke
     monkeypatch.setattr(pipeline, "refresh_news", refresh)
     app = AppTest.from_file(APP).run()
     assert not app.exception
+    company = load_config().company.name
     assert [tab.label for tab in app.tabs] == [
-        "Equinix (1)",
+        f"{company} (1)",
         "Competitors (1)",
         "Industry (2)",
     ]
