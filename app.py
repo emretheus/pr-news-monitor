@@ -12,7 +12,7 @@ from pathlib import Path
 import streamlit as st
 from dotenv import load_dotenv
 
-from monitor.config import AppConfig, ConfigError, EntityConfig, load_config
+from monitor.config import AppConfig, ConfigError, load_config
 from monitor.http import FetchError, normalize_url
 from monitor.models import (
     AnalysisStatus,
@@ -115,21 +115,29 @@ PRESETS: dict[str, dict[str, object]] = {
 }
 
 
-def _entity(name: str, aliases: list[str]) -> EntityConfig:
-    return EntityConfig(name=name.strip(), aliases=tuple(a.strip() for a in aliases if a.strip()))
-
-
 def preset_to_config(preset: str, base: AppConfig) -> AppConfig:
-    spec = PRESETS[preset]
+    """Build via plain dicts so construction never depends on module identity."""
+    try:
+        spec = PRESETS[preset]
+    except KeyError:
+        raise ConfigError("Unknown preset.") from None
     company_name, company_aliases = spec["company"]  # type: ignore[misc]
     competitors = spec["competitors"]  # type: ignore[assignment]
     industry_name, industry_aliases = spec["industry"]  # type: ignore[misc]
-    return AppConfig(
-        company=_entity(company_name, company_aliases),  # type: ignore[arg-type]
-        competitors=tuple(_entity(n, a) for n, a in competitors),  # type: ignore[misc]
-        industry=_entity(industry_name, industry_aliases),  # type: ignore[arg-type]
-        news=base.news,
-    )
+    try:
+        return AppConfig.model_validate(
+            {
+                "company": {"name": company_name, "aliases": list(company_aliases)},
+                "competitors": [
+                    {"name": name, "aliases": list(aliases)}
+                    for name, aliases in competitors  # type: ignore[misc]
+                ],
+                "industry": {"name": industry_name, "aliases": list(industry_aliases)},
+                "news": base.news.model_dump(),
+            }
+        )
+    except ValueError as exc:
+        raise ConfigError("This preset is currently invalid.") from exc
 
 
 def custom_to_config(
@@ -141,12 +149,17 @@ def custom_to_config(
     if not names:
         raise ConfigError("Add at least one competitor, comma separated.")
     try:
-        sector = _entity(industry, [industry]) if industry.strip() else base.industry
-        return AppConfig(
-            company=_entity(company, [company]),
-            competitors=tuple(_entity(name, [name]) for name in names),
-            industry=sector,
-            news=base.news,
+        return AppConfig.model_validate(
+            {
+                "company": {"name": company.strip(), "aliases": [company.strip()]},
+                "competitors": [{"name": name, "aliases": [name]} for name in names],
+                "industry": (
+                    {"name": industry.strip(), "aliases": [industry.strip()]}
+                    if industry.strip()
+                    else (base.industry.model_dump() if base.industry else None)
+                ),
+                "news": base.news.model_dump(),
+            }
         )
     except ValueError as exc:
         raise ConfigError(f"Invalid configuration: {exc}") from exc
@@ -242,54 +255,83 @@ def render_story(story: Story, articles: dict[str, Article]) -> None:
                 )
 
 
-def render_config_selector(base: AppConfig) -> AppConfig:
-    """Demo presets + custom names. YAML stays the fallback; selection needs refresh."""
-    with st.expander("Tracked entities & demo presets", expanded=False):
-        industry_txt = f" · Sector: {base.industry.name}" if base.industry else ""
+def _preset_card(preset: str, base: AppConfig) -> None:
+    """Preview card for one demo preset with a single apply action."""
+    spec = PRESETS[preset]
+    company_name, _ = spec["company"]  # type: ignore[misc]
+    competitors = [name for name, _ in spec["competitors"]]  # type: ignore[misc]
+    industry_name, _ = spec["industry"]  # type: ignore[misc]
+    with st.container(border=True):
+        st.markdown(f"**{safe_text(preset)}**")
         st.caption(
             safe_text(
-                f"YAML default: {base.company.name} vs "
-                + ", ".join(e.name for e in base.competitors)
-                + industry_txt
-                + ". Selection applies instantly to display; select Refresh news to fetch."
+                f"{company_name} vs {', '.join(competitors)} · Sector: {industry_name}"
             )
         )
-        preset = st.selectbox("Try an example", list(PRESETS.keys()), key="preset_choice")
-        if st.button("Use this preset", key="use_preset"):
+        if st.button("Use this preset", key="use_preset", type="primary"):
             try:
                 st.session_state["custom_config"] = preset_to_config(preset, base)
                 st.session_state["custom_label"] = preset
-            except ValueError as exc:
-                st.error(f"Invalid preset: {exc}")
+                st.rerun()
+            except ConfigError as exc:
+                st.error(str(exc))
+
+
+def render_config_selector(base: AppConfig) -> AppConfig:
+    """Demo presets + custom names. YAML stays the fallback; selection needs refresh."""
+    active = effective_config(base)
+    if st.session_state.get("custom_config") is not None:
+        st.success(
+            safe_text(
+                f"Active: {st.session_state.get('custom_label') or 'Custom selection'} — "
+                "press Refresh news to fetch coverage for it."
+            ),
+            icon="✅",
+        )
+    with st.expander("Tracked entities & demo presets", expanded=False):
+        st.caption("One click switches demo companies. The YAML file stays the fallback.")
+        choice = st.segmented_control(
+            "Try an example",
+            options=list(PRESETS.keys()),
+            key="preset_choice",
+        )
+        if choice is not None:
+            _preset_card(choice, base)
+        else:
+            st.caption("Pick a pill above to preview an example.")
         st.divider()
-        company = st.text_input("Company", value="", placeholder="e.g. Apple", key="company_input")
-        competitors = st.text_input(
-            "Competitors (comma separated)",
-            value="",
-            placeholder="e.g. Samsung, Google",
-            key="competitors_input",
-        )
-        industry = st.text_input(
-            "Sector (optional, blank = keep YAML sector)",
-            value="",
-            placeholder="e.g. Consumer electronics",
-            key="industry_input",
-        )
-        left, right = st.columns(2)
-        with left:
-            if st.button("Apply custom", key="apply_custom"):
+        with st.form("custom_entities"):
+            st.markdown("**Or track your own names**")
+            company = st.text_input(
+                "Company", value="", placeholder="e.g. Apple", key="company_input"
+            )
+            competitors = st.text_input(
+                "Competitors (comma separated)",
+                value="",
+                placeholder="e.g. Samsung, Google",
+                key="competitors_input",
+            )
+            industry = st.text_input(
+                "Sector (optional, blank keeps the YAML sector)",
+                value="",
+                placeholder="e.g. Consumer electronics",
+                key="industry_input",
+            )
+            submitted = st.form_submit_button("Apply custom", type="primary")
+            if submitted:
                 try:
                     st.session_state["custom_config"] = custom_to_config(
                         company, competitors, base, industry
                     )
                     st.session_state["custom_label"] = "Custom selection"
+                    st.rerun()
                 except ConfigError as exc:
                     st.error(str(exc))
-        with right:
-            if st.button("Reset to YAML", key="reset_config"):
-                st.session_state["custom_config"] = None
-                st.session_state["custom_label"] = None
-    return effective_config(base)
+        if st.button("Reset to YAML", key="reset_config"):
+            st.session_state["custom_config"] = None
+            st.session_state["custom_label"] = None
+            st.rerun()
+    return active
 
 
 def render_overview(
@@ -381,18 +423,23 @@ def main() -> None:
             "News storage could not be opened. Check that the configured data directory is writable."
         )
         st.stop()
-    config = render_config_selector(settings.config)
+    config = effective_config(settings.config)
+    render_config_selector(settings.config)
     st.caption("PRESS COVERAGE · COMPANY & COMPETITORS & INDUSTRY")
     heading, controls = st.columns([4, 1], vertical_alignment="center")
     with heading:
         st.title("PR News Monitor")
-        competitors = ", ".join(entity.name for entity in config.competitors)
-        label = st.session_state.get("custom_label")
-        suffix = f" · {label}" if label and st.session_state.get("custom_config") else " · YAML default"
-        sector = f" · Sector: {config.industry.name}" if config.industry else ""
-        st.caption(
-            safe_text(f"Monitoring {config.company.name} · Competitors: {competitors}{sector}{suffix}")
-        )
+        st.badge(config.company.name, color="blue")
+        for entity in config.competitors:
+            st.badge(entity.name, color="orange")
+        if config.industry:
+            st.badge(config.industry.name, color="violet")
+        if st.session_state.get("custom_config") is not None:
+            st.badge(
+                str(st.session_state.get("custom_label") or "Custom"), color="green"
+            )
+        else:
+            st.badge("YAML default", color="gray")
     requested = st.session_state.get("refresh_requested", False)
     busy = refresh_in_progress()
     with controls:

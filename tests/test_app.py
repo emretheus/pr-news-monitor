@@ -1,3 +1,4 @@
+import importlib.util
 from pathlib import Path
 from unittest.mock import Mock
 
@@ -6,7 +7,7 @@ import streamlit as st
 from streamlit.testing.v1 import AppTest
 
 from monitor import pipeline
-from monitor.config import load_config
+from monitor.config import ConfigError, load_config
 from monitor.models import (
     AnalysisStatus,
     Article,
@@ -189,3 +190,61 @@ def test_industry_feed_supports_overlap_and_excludes_unrelated_stories(db, monke
     assert any("Relevant to: industry" == item.value for item in app.caption)
     app.run()
     refresh.assert_not_called()
+
+
+def _load_app_module():
+    spec = importlib.util.spec_from_file_location("pr_news_app", str(APP))
+    assert spec and spec.loader
+    module = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+def test_all_presets_build_valid_configs():
+    app_module = _load_app_module()
+    base = load_config()
+    seen = set()
+    for preset in app_module.PRESETS:
+        config = app_module.preset_to_config(preset, base)
+        assert config.company.name
+        assert 1 <= len(config.competitors) <= 10
+        assert config.industry is not None
+        assert config.news == base.news
+        seen.add(config.fingerprint)
+    assert len(seen) == len(app_module.PRESETS)
+
+
+def test_preset_to_config_rejects_unknown_name():
+    app_module = _load_app_module()
+    with pytest.raises(ConfigError):
+        app_module.preset_to_config("No such preset", load_config())
+
+
+def test_custom_to_config_accepts_names_and_rejects_blanks():
+    app_module = _load_app_module()
+    base = load_config()
+    config = app_module.custom_to_config("Apple", "Samsung, Google", base, "Phones")
+    assert config.company.name == "Apple"
+    assert [e.name for e in config.competitors] == ["Samsung", "Google"]
+    assert config.industry is not None and config.industry.name == "Phones"
+    kept = app_module.custom_to_config("Apple", "Samsung", base)
+    assert kept.industry == base.industry
+    with pytest.raises(ConfigError):
+        app_module.custom_to_config("  ", "Samsung", base)
+    with pytest.raises(ConfigError):
+        app_module.custom_to_config("Apple", "   ", base)
+    with pytest.raises(ConfigError):
+        app_module.custom_to_config("Apple", "Apple", base)
+
+
+def test_preset_selection_applies_without_raw_error(db):
+    app_module = _load_app_module()
+    preset = next(iter(app_module.PRESETS))
+    app = AppTest.from_file(APP).run()
+    assert not app.exception
+    app.segmented_control(key="preset_choice").set_value(preset).run()
+    assert not app.exception
+    app.button(key="use_preset").click().run()
+    assert not app.exception
+    assert not any("validation error" in str(item.value) for item in app.error)
+    assert any(preset.split(":")[0] in str(item.value) for item in app.success)
