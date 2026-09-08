@@ -7,7 +7,12 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta
 from threading import Lock
 
-from monitor.analysis import analysis_fingerprint, analyze_group, fallback_story
+from monitor.analysis import (
+    analysis_fingerprint,
+    analyze_group,
+    fallback_story,
+    parse_models,
+)
 from monitor.config import AppConfig
 from monitor.enrichment import enrich_article
 from monitor.grouping import MAX_ARTICLES, group_articles
@@ -167,7 +172,7 @@ def analyze_groups(
     api_key: str,
     model: str,
     budget_seconds: float = 90,
-    max_calls: int = 20,
+    max_calls: int = 35,
     progress: Callable[[str], None] | None = None,
 ) -> AnalysisBatch:
     if not 0 < budget_seconds <= 180 or not 0 <= max_calls <= 50:
@@ -189,10 +194,16 @@ def analyze_groups(
     warnings = []
     requests_made = reused = 0
     stopped = False
+    models = parse_models(model)
+    primary = models[0] if models else model
     for index, group in enumerate(groups):
         key = analysis_fingerprint(group, config, model)
-        if key in cached:
-            stories.append(cached[key])
+        cached_story = cached.get(key)
+        if cached_story is None and primary != model:
+            # Reuse SUCCESS analysis saved before the fallback model was added.
+            cached_story = cached.get(analysis_fingerprint(group, config, primary))
+        if cached_story is not None:
+            stories.append(cached_story)
             reused += 1
             continue
         if stopped or requests_made >= max_calls or time.monotonic() >= deadline:
@@ -238,7 +249,7 @@ def refresh_news(
     model: str,
     source_budget_seconds: float = 60,
     analysis_budget_seconds: float = 90,
-    max_analysis_calls: int = 20,
+    max_analysis_calls: int = 35,
     progress: Callable[[str], None] | None = None,
 ) -> RefreshResult:
     """Ingest, group, analyze, then atomically publish a complete result snapshot."""

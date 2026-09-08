@@ -82,7 +82,7 @@ Before adding replicas, move storage to PostgreSQL and replace the process-local
 
 ## Scaling, reliability, and UX
 
-- **Scaling:** refresh work is capped, including 200 recent articles for grouping and 20 model calls. Larger workloads need incremental processing, queued jobs, and provider-aware rate limits.
+- **Scaling:** refresh work is capped, including 200 recent articles for grouping and 35 model calls. Larger workloads need incremental processing, queued jobs, and provider-aware rate limits.
 - **Reliability:** timeouts, bounded retries, independent source outcomes, and atomic publication limit the impact of failures. Invalid model output falls back to a headline and keyword relevance; schema validation cannot guarantee factual accuracy.
 - **UX:** progress, partial coverage, fallbacks, snippet-only evidence, and unknown dates are visible. Background refresh and a clearer freshness indicator would make continuous monitoring easier.
 - **Coverage:** the default seven-day window filters saved articles; it does not guarantee seven days of source history. Sitemap discovery is a bounded sample, so relevant news can be missed.

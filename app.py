@@ -62,12 +62,18 @@ def startup() -> RuntimeSettings:
     if not database.is_absolute():
         database = ROOT / database
     initialize_database(database)
+    primary = setting("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+    fallback = setting("OPENROUTER_FALLBACK_MODEL")
+    models = [part.strip() for part in (primary, fallback) if part.strip()]
+    # Dedupe while preserving order; analysis.parse_models caps the final count.
+    model = ",".join(dict.fromkeys(",".join(models).split(","))) if models else primary
+    model = ",".join(part.strip() for part in model.split(",") if part.strip())
     return RuntimeSettings(
         config,
         database,
         setting("NEWSDATA_API_KEY"),
         setting("OPENROUTER_API_KEY"),
-        setting("OPENROUTER_MODEL", "openai/gpt-4o-mini"),
+        model or "openai/gpt-4o-mini",
     )
 
 
@@ -366,6 +372,20 @@ def render_overview(
                 st.bar_chart(top)
 
 
+def render_feed(feed: list[Story], articles: dict[str, Article]) -> None:
+    """Two-column card grid so long feeds need half the scrolling."""
+    if len(feed) == 1:
+        render_story(feed[0], articles)
+        return
+    for offset in range(0, len(feed), 2):
+        left, right = st.columns(2)
+        with left:
+            render_story(feed[offset], articles)
+        if offset + 1 < len(feed):
+            with right:
+                render_story(feed[offset + 1], articles)
+
+
 def request_refresh() -> None:
     st.session_state["refresh_requested"] = True
 
@@ -544,8 +564,7 @@ def main() -> None:
                 st.info(
                     "No matching stories in the saved coverage. Refresh later for new articles."
                 )
-            for story in feed:
-                render_story(story, articles)
+            render_feed(feed, articles)
     st.caption(
         "Coverage is a bounded sample. NewsData.io's free feed is delayed; original publication dates may be unavailable."
     )

@@ -121,6 +121,17 @@
     .priority h3 { margin-top: 12px; }
     .priority p { color: var(--muted); font-size: 18px; line-height: 1.4; }
 
+    .numbers { display: grid; grid-template-columns: repeat(4, 1fr); gap: clamp(20px, 3vw, 44px); }
+    .num-card { padding-top: 18px; border-top: 4px solid var(--blue); }
+    .num-card:nth-child(2) { border-color: var(--signal); }
+    .num-card:nth-child(3) { border-color: var(--ink); }
+    .num-card:nth-child(4) { border-color: var(--warn); }
+    .num-card h3 { font-size: 20px; margin-bottom: 12px; }
+    .num-card ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 10px; }
+    .num-card li { font-size: clamp(14px, 1.25vw, 18px); line-height: 1.35; color: var(--muted); }
+    .num-card li b { color: var(--ink); font-family: var(--mono); font-size: 0.95em; }
+    .numbers-note { margin-top: 28px; color: var(--muted); font-size: 15px; }
+
     .closing { align-content: center; gap: 32px; }
     .closing h2 { max-width: 950px; font-size: clamp(48px, 6.8vw, 94px); }
     .closing .line { width: 120px; height: 5px; background: var(--signal); }
@@ -134,7 +145,7 @@
 
     @media (max-width: 800px) {
       .slide { overflow-y: auto; padding: 34px 28px 70px 48px; }
-      .pipeline, .feeds, .choices, .production, .failure-grid, .evidence, .diagram-layout, .ops { grid-template-columns: 1fr; gap: 22px; }
+      .pipeline, .feeds, .choices, .production, .numbers, .failure-grid, .evidence, .diagram-layout, .ops { grid-template-columns: 1fr; gap: 22px; }
       .diagram-image { height: auto; max-height: none; }
       .stage { min-height: 0; padding: 32px 0 18px 40px; border-top: 0; border-left: 2px solid var(--line); }
       .stage::before { top: 7px; left: -8px; }
@@ -154,17 +165,17 @@
 </head>
 <body>
   <main class="deck" aria-live="polite">
-    <section class="slide active" style="--signal-height:22%" aria-label="Slide 1 of 8">
+    <section class="slide active" style="--signal-height:22%" aria-label="Slide 1 of 9">
       <div class="slide-head"><span class="eyebrow">Onsite interview · five-minute walkthrough</span></div>
       <div class="slide-body hero">
         <h1>News monitoring<br><span class="accent">without the noise.</span></h1>
         <p class="lede">A configurable PR dashboard that groups duplicate coverage, explains each story, and keeps the original evidence one click away.</p>
         <p class="hero-note">Equinix · Digital Realty · Data centre industry</p>
       </div>
-      <footer class="slide-foot"><span>PR News Monitor</span><span class="slide-index">01 / 08</span></footer>
+      <footer class="slide-foot"><span>PR News Monitor</span><span class="slide-index">01 / 09</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:30%" aria-label="Slide 2 of 8">
+    <section class="slide" style="--signal-height:30%" aria-label="Slide 2 of 9">
       <header class="slide-head"><span class="eyebrow">System overview</span><h2>The complete flow</h2></header>
       <div class="slide-body diagram-layout">
         <div class="diagram-copy">
@@ -176,10 +187,10 @@
           <img src="pr-news-monitor-flow.jpg" alt="Flow diagram from company and competitor configuration through article discovery, text extraction, duplicate checks, grouping, LLM analysis, and dashboard feeds">
         </figure>
       </div>
-      <footer class="slide-foot"><span>Detailed implementation flow</span><span class="slide-index">02 / 08</span></footer>
+      <footer class="slide-foot"><span>Detailed implementation flow</span><span class="slide-index">02 / 09</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:40%" aria-label="Slide 3 of 8">
+    <section class="slide" style="--signal-height:40%" aria-label="Slide 3 of 9">
       <header class="slide-head"><span class="eyebrow">The refresh path</span><h2>One flow, clear boundaries</h2></header>
       <div class="slide-body pipeline">
         <article class="stage"><span class="number">01</span><h3>Discover</h3><p>NewsData.io plus Data Centre Magazine.</p></article>
@@ -187,23 +198,23 @@
         <article class="stage"><span class="number">03</span><h3>Group + analyze</h3><p>TF-IDF groups related reports. OpenRouter summarizes and labels relevance.</p></article>
         <article class="stage"><span class="number">04</span><h3>Publish</h3><p>SQLite swaps in one complete snapshot for all three feeds.</p></article>
       </div>
-      <footer class="slide-foot"><span>UI → pipeline → focused modules → storage</span><span class="slide-index">03 / 08</span></footer>
+      <footer class="slide-foot"><span>UI → pipeline → focused modules → storage</span><span class="slide-index">03 / 09</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:50%" aria-label="Slide 4 of 8">
-      <header class="slide-head"><span class="eyebrow">Verified Docker refresh</span><h2>Three views of the same evidence</h2></header>
+    <section class="slide" style="--signal-height:50%" aria-label="Slide 4 of 9">
+      <header class="slide-head"><span class="eyebrow">Docker proof · 59 seconds, not a mock</span><h2>Fewer stories, more signal</h2></header>
       <div class="slide-body">
         <div class="feeds">
-          <article class="feed"><div class="count">9</div><h3>Equinix stories</h3><p>Direct company coverage and substantive mentions.</p></article>
-          <article class="feed"><div class="count">9</div><h3>Competitor stories</h3><p>Digital Realty coverage. Stories may overlap the company feed.</p></article>
-          <article class="feed"><div class="count">38</div><h3>Industry stories</h3><p>Broader data centre developments, including 23 industry-only stories.</p></article>
+          <article class="feed"><div class="count" style="font-size:clamp(38px,5vw,64px)">48 → 39</div><h3>Deduplicated</h3><p>25 NewsData + 23 Magazine articles merged into 39 stories. Same event from two outlets stays together with both links.</p></article>
+          <article class="feed"><div class="count" style="font-size:clamp(38px,5vw,64px)">9 · 9 · 38</div><h3>Routed, not double-counted</h3><p>Equinix 9, competitors 9, industry 38 — including 23 industry-only. Total ≠ sum: one story can live in two feeds.</p></article>
+          <article class="feed"><div class="count" style="font-size:clamp(38px,5vw,64px)">20 + 19</div><h3>Honestly labeled</h3><p>20 AI summaries + 19 visible keyword fallbacks at the 20-call cap. Snapshot survived container recreate unchanged.</p></article>
         </div>
-        <p class="proof-note">39 grouped stories · 20 AI analyses · 19 explicit budget fallbacks · 59.2-second refresh. Integration evidence, not an accuracy benchmark.</p>
+        <p class="proof-note">Linux ARM64 · non-root · named volume verified. Counts prove the plumbing — not summary accuracy.</p>
       </div>
-      <footer class="slide-foot"><span>Independent labels allow useful overlap</span><span class="slide-index">04 / 08</span></footer>
+      <footer class="slide-foot"><span>Overlap is a feature; fallbacks are labeled, not hidden</span><span class="slide-index">04 / 09</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:60%" aria-label="Slide 5 of 8">
+    <section class="slide" style="--signal-height:60%" aria-label="Slide 5 of 9">
       <header class="slide-head"><span class="eyebrow">Engineering choices</span><h2>Simple choices with known limits</h2></header>
       <div class="slide-body choices">
         <article class="choice"><strong>Streamlit</strong><p>One Python application to build and deploy. Long refreshes occupy the initiating session.</p></article>
@@ -213,10 +224,10 @@
         <article class="choice"><strong>YAML</strong><p>Settings stay reviewable and versionable. Users restart and refresh after changes.</p></article>
         <article class="choice"><strong>Bounded work</strong><p>Caps protect latency and API spend. Coverage is a recent sample, not an exhaustive archive.</p></article>
       </div>
-      <footer class="slide-foot"><span>Complexity follows demonstrated need</span><span class="slide-index">05 / 08</span></footer>
+      <footer class="slide-foot"><span>Complexity follows demonstrated need</span><span class="slide-index">05 / 09</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:70%" aria-label="Slide 6 of 8">
+    <section class="slide" style="--signal-height:70%" aria-label="Slide 6 of 9">
       <header class="slide-head"><span class="eyebrow">Failure behavior</span><h2>Useful results survive imperfect inputs</h2></header>
       <div class="slide-body failure-grid">
         <div class="failure-list">
@@ -227,10 +238,10 @@
         </div>
         <aside class="promise"><div class="big">The last good snapshot stays visible.</div><p>Atomic publication prevents partial replacements. A process-wide lock rejects overlapping refreshes, and normal page reruns never call the APIs.</p></aside>
       </div>
-      <footer class="slide-foot"><span>Failure is a product state, not a hidden exception</span><span class="slide-index">06 / 08</span></footer>
+      <footer class="slide-foot"><span>Failure is a product state, not a hidden exception</span><span class="slide-index">06 / 09</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:82%" aria-label="Slide 7 of 8">
+    <section class="slide" style="--signal-height:82%" aria-label="Slide 7 of 9">
       <header class="slide-head"><span class="eyebrow">Operations</span><h2>Operations today and in production</h2></header>
       <div class="slide-body ops">
         <div class="ops-column">
@@ -248,10 +259,10 @@
           <article class="ops-item"><strong>Actionable alerts</strong><p>Alert on stale coverage, repeated source failure, high fallback rate, job backlog, and unusual API spend.</p></article>
         </div>
       </div>
-      <footer class="slide-foot"><span>Health says the app is up; observability says whether monitoring works</span><span class="slide-index">07 / 08</span></footer>
+      <footer class="slide-foot"><span>Health says the app is up; observability says whether monitoring works</span><span class="slide-index">07 / 09</span></footer>
     </section>
 
-    <section class="slide" style="--signal-height:100%" aria-label="Slide 8 of 8">
+    <section class="slide" style="--signal-height:100%" aria-label="Slide 8 of 9">
       <header class="slide-head"><span class="eyebrow">Production direction</span><h2>Improve in the order risk appears</h2></header>
       <div class="slide-body production">
         <article class="priority"><small>FIRST</small><h3>Measure quality</h3><p>Label a real news sample. Evaluate grouping, dates, relevance, and summary accuracy before changing models.</p></article>
@@ -259,7 +270,40 @@
         <article class="priority"><small>WHEN MONITORING BECOMES CONTINUOUS</small><h3>Move work to jobs</h3><p>Add scheduling, durable retries, freshness alerts, source metrics, and cost tracking.</p></article>
         <article class="priority"><small>WHEN ONE PROCESS ISN'T ENOUGH</small><h3>Change the architecture</h3><p>Use PostgreSQL and shared job coordination. Add FastAPI or a richer frontend when another client needs it.</p></article>
       </div>
-      <footer class="slide-foot"><span>Working prototype first; measured evolution next</span><span class="slide-index">08 / 08</span></footer>
+      <footer class="slide-foot"><span>Working prototype first; measured evolution next</span><span class="slide-index">08 / 09</span></footer>
+    </section>
+    <section class="slide" style="--signal-height:100%" aria-label="Slide 9 of 9">
+      <header class="slide-head"><span class="eyebrow">Backup · numbers</span><h2>Every number is a budget</h2></header>
+      <div class="slide-body">
+        <div class="numbers">
+          <article class="num-card"><h3>Discover</h3><ul>
+            <li><b>25</b> articles / source / refresh</li>
+            <li><b>7</b> days display window</li>
+            <li><b>60s</b> per source · <b>20s</b> discovery</li>
+            <li><b>100</b>-char queries · max <b>10</b></li>
+          </ul></article>
+          <article class="num-card"><h3>Extract</h3><ul>
+            <li><b>2MB</b> max page · <b>15s</b> per article</li>
+            <li><b>50</b> words min or snippet fallback</li>
+            <li><b>100k</b> chars stored full text</li>
+            <li><b>3</b> redirects · <b>1</b> retry</li>
+          </ul></article>
+          <article class="num-card"><h3>Group</h3><ul>
+            <li><b>200</b> articles grouped · <b>8</b> / story</li>
+            <li><b>72h</b> max date gap</li>
+            <li><b>0.42</b> similar · <b>0.65</b> unknown date</li>
+            <li>title weight <b>0.65</b> · floor <b>0.2</b></li>
+          </ul></article>
+          <article class="num-card"><h3>Analyze</h3><ul>
+            <li><b>4k</b> chars / article · max <b>8</b></li>
+            <li><b>20</b> calls · <b>90s</b> per refresh</li>
+            <li><b>2</b> models · temp <b>0</b></li>
+            <li><b>80</b> words · <b>128KB</b> cap</li>
+          </ul></article>
+        </div>
+        <p class="numbers-note">Limits keep latency and cost predictable. Exceeding them yields partial results with labeled fallbacks — never silent failure or overwritten good snapshots.</p>
+      </div>
+      <footer class="slide-foot"><span>Prototype bounds; production scales with jobs + queues</span><span class="slide-index">09 / 09</span></footer>
     </section>
   </main>
 
