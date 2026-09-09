@@ -33,6 +33,8 @@ Run `python -m pytest -q` for tests; no API keys or network are required. Local 
 
 ## How it works
 
+![Refresh flow: discover → extract → group → analyze → publish](docs/presentation/pr-news-monitor-flow.jpg)
+
 ```text
 NewsData.io + Data Centre Magazine
   → discover articles → extract text → group related coverage
