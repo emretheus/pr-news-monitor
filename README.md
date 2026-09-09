@@ -1,12 +1,12 @@
 # PR News Monitor
 
-A dashboard for tracking Equinix, competitor news, and general industry developments. It combines related coverage into stories, generates short summaries, and provides three feeds with links to the original articles.
+A dashboard for tracking Equinix, competitor news, and general industry developments. It combines related coverage into stories, generates short summaries, and provides company, competitor, industry, and competitor-exclusive (Rival moves) feeds with links to the original articles.
 
-Built with **Streamlit, SQLite, NewsData.io, Newspaper4k, and OpenRouter** for the [coding challenge](task.md).
+Built with **Streamlit, SQLite, NewsData.io, Newspaper4k, and OpenRouter** for the [coding challenge](docs/task.md).
 
 ## Quick start
 
-Create `.env` from `.env.example` if you don't already have one. Set `NEWSDATA_API_KEY` and `OPENROUTER_API_KEY`; the default model is `openai/gpt-4o-mini`.
+Create `.env` from `.env.example` if you don't already have one. Set `NEWSDATA_API_KEY` and `OPENROUTER_API_KEY`; the default model is `openai/gpt-4o-mini`. Optionally set `OPENROUTER_FALLBACK_MODEL` to a second model that is tried once when the primary fails, under the same prompt and validation.
 
 ```sh
 docker compose up --build -d --wait
@@ -37,12 +37,12 @@ Run `python -m pytest -q` for tests; no API keys or network are required. Local 
 NewsData.io + Data Centre Magazine
   → discover articles → extract text → group related coverage
   → summarize and classify with OpenRouter → publish to SQLite
-  → Streamlit company / competitor / industry feeds
+  → Streamlit company / competitor / industry / rival-moves feeds
 ```
 
 `app.py` handles presentation. Modules in `monitor/` handle retrieval, extraction, grouping, analysis, and storage; `pipeline.py` coordinates each refresh.
 
-Normalized URLs deduplicate articles. TF-IDF similarity groups related reports using title, body, date, and company overlap. One LLM request per changed story produces a description and per-article relevance labels, validated with Pydantic. Successful extractions and unchanged analyses are reused.
+Normalized URLs deduplicate articles. TF-IDF similarity groups related reports using title, body, date, and company overlap. Up to two LLM attempts (primary, then the configured fallback model) per changed story produce a description and per-article relevance labels, validated with Pydantic. Successful extractions and unchanged analyses are reused.
 
 Refreshes are explicit. Browsing saved results makes no API calls, and completed story snapshots are published atomically. If all sources fail, the previous snapshot stays visible.
 
@@ -54,7 +54,7 @@ The model assigns an independent industry label for substantive sector developme
 
 This feed reuses the existing article collection and analysis requests. General coverage mainly comes from Data Centre Magazine; NewsData.io continues to prioritize the configured companies. It is a bounded sample, not comprehensive industry discovery. For a different sector, additional discovery sources would be needed for broader coverage.
 
-Startup adds the industry column to existing SQLite databases without deleting articles or snapshots. Old labels default to false, and the new configuration/prompt fingerprint requires fresh analysis. All 140 automated tests pass, including migration, industry-only stories, overlapping labels, unrelated exclusions, and malformed model responses.
+Startup adds the industry column to existing SQLite databases without deleting articles or snapshots. Old labels default to false, and the new configuration/prompt fingerprint requires fresh analysis. All 145 automated tests pass, including migration, industry-only stories, overlapping labels, two-model fallback, unrelated exclusions, and malformed model responses.
 
 ## Taking it to production
 
@@ -82,8 +82,8 @@ Before adding replicas, move storage to PostgreSQL and replace the process-local
 
 ## Scaling, reliability, and UX
 
-- **Scaling:** refresh work is capped, including 200 recent articles for grouping and 35 model calls. Larger workloads need incremental processing, queued jobs, and provider-aware rate limits.
-- **Reliability:** timeouts, bounded retries, independent source outcomes, and atomic publication limit the impact of failures. Invalid model output falls back to a headline and keyword relevance; schema validation cannot guarantee factual accuracy.
+- **Scaling:** refresh work is capped, including 200 recent articles for grouping and 20 stories per refresh (up to 2 model attempts each). Larger workloads need incremental processing, queued jobs, and provider-aware rate limits.
+- **Reliability:** timeouts, bounded retries, independent source outcomes, and atomic publication limit the impact of failures. A second configured model is tried once before falling back to a headline and keyword relevance; schema validation cannot guarantee factual accuracy.
 - **UX:** progress, partial coverage, fallbacks, snippet-only evidence, and unknown dates are visible. Background refresh and a clearer freshness indicator would make continuous monitoring easier.
 - **Coverage:** the default seven-day window filters saved articles; it does not guarantee seven days of source history. Sitemap discovery is a bounded sample, so relevant news can be missed.
 
